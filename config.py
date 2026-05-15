@@ -23,6 +23,6 @@ UPLOAD_DESTINATION = os.getenv("UPLOAD_DESTINATION", "none")
 # Paths
 ASSETS_DIR = "assets"
 OUTPUT_DIR = "output"
-TEMPLATE_XLSX = f"{ASSETS_DIR}/Template settimanale.xlsx"
-TEMPLATE_PPTX = f"{ASSETS_DIR}/Template settimanale.pptx"
-LINK_MONITORAGGIO = f"{ASSETS_DIR}/Link Monitoraggio.xlsx"
+TEMPLATE_XLSX = f"{ASSETS_DIR}/Template_settimanale.xlsx"
+TEMPLATE_PPTX = f"{ASSETS_DIR}/Template_settimanale.pptx"
+LINK_MONITORAGGIO = f"{ASSETS_DIR}/Link_Monitoraggio.xlsx"
