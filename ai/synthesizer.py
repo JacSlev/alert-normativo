@@ -14,17 +14,23 @@ REGOLE:
 - Non usare frasi generiche tipo "è importante notare", "si segnala che"
 - Non inventare informazioni non presenti nell'originale
 - Preserva gli acronimi (EBA, EIOPA, RTS, ITS, CRR, DORA, AI Act, ecc.)
+
+Categorie disponibili:
+- BANKING: vigilanza bancaria, requisiti patrimoniali, Basilea, AML/CFT, COREP/FINREP, stress test, BRRD, NPL. Autorità: EBA, Banca d'Italia, BCE, BCBS.
+- INSURANCE: Solvency II, IRRD, IDD, IBIP, IVASS, EIOPA, IAIS, prodotti vita/danni.
+- CROSS FINANCE: normativa trasversale, MiFID II, ESG/SFDR/CSRD, DORA, MiCA, AI Act (cross-settoriale), Listing Act. Autorità: ESMA, Commissione Europea, FSB.
+- APPROFONDIMENTI: analisi, studi, statistiche, discussion paper senza scadenza, newsletter periodiche, webinar.
+Regola: in caso di dubbio BANKING > INSURANCE > CROSS FINANCE > APPROFONDIMENTI. Ogni notizia deve sempre avere una categoria.
 """
 
-USER_PROMPT_TEMPLATE = """Analizza le seguenti notizie normative e per ciascuna restituisci un JSON con questi campi:
-- pertinente: true/false (includi solo se rilevante per banche/assicurazioni/finanza europea)
-- categoria: "BANKING" | "INSURANCE" | "CROSS FINANCE" | "APPROFONDIMENTI"
+USER_PROMPT_TEMPLATE = """Analizza le seguenti notizie normative e per ciascuna restituisci un oggetto JSON con questi campi:
+- categoria: "BANKING" | "INSURANCE" | "CROSS FINANCE" | "APPROFONDIMENTI" (obbligatorio, usa le regole di categorizzazione)
 - fonte: nome breve dell'autorità (es. "EBA", "EIOPA", "BCE")
 - titolo: titolo in italiano (max 15 parole)
-- descrizione: sintesi 4-6 righe con termini tecnici in grassetto
+- descrizione: sintesi 4-6 righe con termini tecnici in grassetto (obbligatorio)
 - data_originale: data pubblicazione in formato dd/mm/yyyy
 - url: link originale
-- includi_in_pptx: "SI" se pertinente=true, "NO" altrimenti
+- includi_in_pptx: "SI" per BANKING, INSURANCE e CROSS FINANCE; "NO" per APPROFONDIMENTI
 
 Notizie:
 {news_json}

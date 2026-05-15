@@ -5,10 +5,10 @@ from openpyxl import load_workbook
 from output.excel_logger import create_excel, append_news, get_output_path
 
 SAMPLE_NEWS = [
-    {"pertinente": True, "categoria": "BANKING", "fonte": "EBA",
-     "titolo": "EBA pubblica linee guida FRTB", "descrizione": "L'**EBA** ha pubblicato linee guida.",
+    {"categoria": "BANKING", "fonte": "EBA",
+     "titolo": "EBA pubblica linee guida FRTB", "descrizione": "L'EBA ha pubblicato linee guida.",
      "data_originale": "14/05/2026", "url": "https://eba.eu/1", "includi_in_pptx": "SI"},
-    {"pertinente": False, "categoria": "APPROFONDIMENTI", "fonte": "EIOPA",
+    {"categoria": "APPROFONDIMENTI", "fonte": "EIOPA",
      "titolo": "Studio EIOPA", "descrizione": "Studio pubblicato.",
      "data_originale": "13/05/2026", "url": "https://eiopa.eu/1", "includi_in_pptx": "NO"},
 ]

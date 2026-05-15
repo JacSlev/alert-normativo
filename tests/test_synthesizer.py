@@ -11,10 +11,10 @@ SAMPLE_NEWS = [
 ]
 
 VALID_RESPONSE = json.dumps([
-    {"pertinente": True, "categoria": "BANKING", "fonte": "EBA",
+    {"categoria": "BANKING", "fonte": "EBA",
      "titolo": "EBA pubblica linee guida FRTB", "descrizione": "L'**EBA** ha pubblicato...",
      "data_originale": "14/05/2026", "url": "https://eba.eu/1", "includi_in_pptx": "SI"},
-    {"pertinente": True, "categoria": "INSURANCE", "fonte": "EIOPA",
+    {"categoria": "INSURANCE", "fonte": "EIOPA",
      "titolo": "EIOPA aggiorna Solvency II", "descrizione": "**EIOPA** ha aggiornato...",
      "data_originale": "13/05/2026", "url": "https://eiopa.eu/1", "includi_in_pptx": "SI"},
 ])
