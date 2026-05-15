@@ -29,6 +29,6 @@ LINK_MONITORAGGIO = f"{ASSETS_DIR}/Link_Monitoraggio.xlsx"
 
 # RSS sources (MVP: EBA e EIOPA — aggiungere altre da docs/fonti.md)
 RSS_SOURCES = [
-    ("https://www.eba.europa.eu/publications-and-media/press-releases", "EBA"),
-    ("https://www.eiopa.europa.eu/media/news_en", "EIOPA"),
+    ("https://www.eba.europa.eu/rss.xml", "EBA"),
+    ("https://www.eiopa.europa.eu/node/4816/rss_en", "EIOPA"),
 ]
