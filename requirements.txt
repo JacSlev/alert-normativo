@@ -5,3 +5,5 @@ anthropic
 openpyxl
 python-pptx
 python-dotenv
+selenium
+webdriver-manager

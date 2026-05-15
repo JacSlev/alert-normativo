@@ -22,8 +22,17 @@ TEMPLATE_XLSX = f"{ASSETS_DIR}/Template_settimanale.xlsx"
 TEMPLATE_PPTX = f"{ASSETS_DIR}/Template_settimanale.pptx"
 LINK_MONITORAGGIO = f"{ASSETS_DIR}/Link_Monitoraggio.xlsx"
 
-# RSS sources (MVP: EBA e EIOPA — aggiungere altre da docs/fonti.md)
+# RSS sources
 RSS_SOURCES = [
     ("https://www.eba.europa.eu/rss.xml", "EBA"),
     ("https://www.eiopa.europa.eu/node/4816/rss_en", "EIOPA"),
+    ("https://www.ecb.europa.eu/rss/press.html", "BCE"),
+]
+
+# HTML sources: (scraper_function_name, display_name)
+# Functions are imported in main.py from scraper.html_scraper
+HTML_SOURCES = [
+    ("scrape_ivass_regolamenti", "IVASS"),
+    ("scrape_insurance_europe_news", "Insurance Europe"),
+    ("scrape_ania_comunicati", "ANIA"),
 ]

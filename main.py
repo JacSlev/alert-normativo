@@ -6,9 +6,20 @@ import anthropic
 
 import config
 from scraper.rss_scraper import scrape_rss
+from scraper.html_scraper import (
+    scrape_ivass_regolamenti,
+    scrape_insurance_europe_news,
+    scrape_ania_comunicati,
+)
 from ai.synthesizer import synthesize_all
 from output.excel_logger import create_excel, append_news, get_output_path as excel_path
 from output.pptx_generator import generate_pptx, get_output_path as pptx_path
+
+_HTML_SCRAPERS = {
+    "scrape_ivass_regolamenti": scrape_ivass_regolamenti,
+    "scrape_insurance_europe_news": scrape_insurance_europe_news,
+    "scrape_ania_comunicati": scrape_ania_comunicati,
+}
 
 
 def scrape():
@@ -17,8 +28,15 @@ def scrape():
     all_news = []
     for url, name in config.RSS_SOURCES:
         items = scrape_rss(url, source_name=name, days=config.FINESTRA_GIORNI)
-        print(f"  [{name}] {len(items)} notizie trovate")
+        print(f"  [RSS] [{name}] {len(items)} notizie trovate")
         all_news.extend(items)
+
+    for fn_name, name in config.HTML_SOURCES:
+        fn = _HTML_SCRAPERS[fn_name]
+        items = fn(days=config.FINESTRA_GIORNI)
+        print(f"  [HTML] [{name}] {len(items)} notizie trovate")
+        all_news.extend(items)
+
     print(f"Totale notizie scraped: {len(all_news)}")
 
     if not all_news:
