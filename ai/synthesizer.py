@@ -57,7 +57,7 @@ def synthesize_batch(client, news_items: list[dict], max_retries: int = 2) -> li
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_prompt}],
             )
-            response_text = response.content[0].text.strip()
+            response_text = response.content[0].text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
             results = json.loads(response_text)
             if not isinstance(results, list):
                 raise ValueError(f"Expected JSON array, got {type(results).__name__}")
