@@ -3,6 +3,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+MAX_TOKENS = 4096
+
 SYSTEM_PROMPT = """Sei un esperto di regolamentazione finanziaria europea e italiana, consulente per SCS Consulting.
 Il tuo compito è analizzare notizie normative e produrre sintesi professionali per la newsletter Alert Normativo.
 REGOLE:
@@ -31,72 +33,46 @@ Rispondi SOLO con un array JSON, senza testo aggiuntivo.
 """
 
 
-def synthesize_batch(client, news_items, max_retries=2) -> list[dict]:
-    """
-    Synthesize a batch of up to 10 news items using Claude API.
-
-    Args:
-        client: anthropic.Anthropic client instance
-        news_items: list of dicts with keys: title, link, summary, date, source
-        max_retries: number of retries on JSON parse failure
-
-    Returns:
-        list of synthesized news dicts, or [] on fatal failure
-    """
+def synthesize_batch(client, news_items: list[dict], max_retries: int = 2) -> list[dict]:
+    """Send up to 10 news items to Claude API and return structured results."""
     if not news_items:
         return []
 
-    # Prepare news in JSON format for the prompt
+    if len(news_items) > 10:
+        logger.warning("synthesize_batch received %d items; truncating to 10.", len(news_items))
+        news_items = news_items[:10]
+
     news_json = json.dumps(news_items, ensure_ascii=False, indent=2)
     user_prompt = USER_PROMPT_TEMPLATE.format(news_json=news_json)
 
-    # Retry loop
-    attempts = 0
-    while attempts <= max_retries:
+    for attempt in range(max_retries + 1):
         try:
             response = client.messages.create(
                 model="claude-haiku-4-5",
-                max_tokens=4096,
+                max_tokens=MAX_TOKENS,
                 system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_prompt}]
+                messages=[{"role": "user", "content": user_prompt}],
             )
-
-            # Extract response text
-            response_text = response.content[0].text
-
-            # Parse as bare JSON array
+            response_text = response.content[0].text.strip()
             results = json.loads(response_text)
-
             if not isinstance(results, list):
-                raise ValueError("Response is not a JSON array")
-
+                raise ValueError(f"Expected JSON array, got {type(results).__name__}")
             return results
-
-        except json.JSONDecodeError as e:
-            attempts += 1
-            if attempts <= max_retries:
-                logger.warning(f"JSON decode error on attempt {attempts}: {e}. Retrying...")
+        except (json.JSONDecodeError, ValueError) as e:
+            if attempt < max_retries:
+                logger.warning("Parse error on attempt %d/%d: %s. Retrying...", attempt + 1, max_retries + 1, e)
             else:
-                logger.error(f"Failed to parse JSON after {max_retries + 1} attempts. Returning empty list.")
+                logger.error("Failed to parse response after %d attempts: %s", max_retries + 1, e)
                 return []
         except Exception as e:
-            logger.error(f"Unexpected error during synthesis: {e}")
+            logger.error("Unexpected error during synthesis: %s", e)
             return []
 
     return []
 
 
-def synthesize_all(client, news_items) -> list[dict]:
-    """
-    Synthesize all news items by chunking into batches of 10.
-
-    Args:
-        client: anthropic.Anthropic client instance
-        news_items: list of news dicts
-
-    Returns:
-        concatenated list of all synthesized results
-    """
+def synthesize_all(client, news_items: list[dict]) -> list[dict]:
+    """Process all news items in batches of 10."""
     results = []
     batch_size = 10
 
@@ -104,8 +80,6 @@ def synthesize_all(client, news_items) -> list[dict]:
         batch_num = (i // batch_size) + 1
         batch = news_items[i:i + batch_size]
         print(f"[AI] Elaborazione batch {batch_num} ({len(batch)} notizie)...")
-
-        batch_results = synthesize_batch(client, batch)
-        results.extend(batch_results)
+        results.extend(synthesize_batch(client, batch))
 
     return results

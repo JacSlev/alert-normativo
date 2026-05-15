@@ -56,3 +56,27 @@ def test_synthesize_batch_uses_correct_model():
     synthesize_batch(client, SAMPLE_NEWS)
     call_kwargs = client.messages.create.call_args[1]
     assert call_kwargs["model"] == "claude-haiku-4-5"
+
+
+def test_synthesize_batch_returns_empty_on_non_list_json():
+    """API returns valid JSON but not an array — should retry and return []."""
+    client = make_mock_client('{"items": []}')
+    results = synthesize_batch(client, SAMPLE_NEWS, max_retries=2)
+    assert results == []
+    assert client.messages.create.call_count == 3
+
+
+def test_synthesize_batch_empty_input_returns_empty():
+    """Empty input returns empty list without making API call."""
+    client = make_mock_client("[]")
+    results = synthesize_batch(client, [])
+    assert results == []
+    assert client.messages.create.call_count == 0
+
+
+def test_synthesize_all_empty_input():
+    """synthesize_all with empty input returns empty list, no API calls."""
+    client = make_mock_client("[]")
+    results = synthesize_all(client, [])
+    assert results == []
+    assert client.messages.create.call_count == 0
