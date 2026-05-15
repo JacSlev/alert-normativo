@@ -27,7 +27,7 @@ def output_path(tmp_path):
 
 def test_get_output_path_format():
     path = get_output_path(numero="2", mese="Maggio", anno="2026")
-    assert path == "output/monitoraggio_N2_Maggio2026.xlsx"
+    assert path == "output/DB_EXCEL/monitoraggio_N2_Maggio2026.xlsx"
 
 
 def test_create_excel_copies_template(tmp_path):

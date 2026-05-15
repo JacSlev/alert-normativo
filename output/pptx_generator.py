@@ -143,7 +143,7 @@ def _update_edition(slide, numero: str, mese: str, anno: str) -> None:
 
 def get_output_path(numero: str, mese: str, anno: str) -> str:
     today = date.today().strftime("%Y%m%d")
-    return f"output/alert_normativo_N{numero}_{mese}{anno}_{today}.pptx"
+    return f"output/ALERT_PPT/alert_normativo_N{numero}_{mese}{anno}_{today}.pptx"
 
 
 def generate_pptx(

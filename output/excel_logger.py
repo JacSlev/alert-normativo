@@ -15,7 +15,7 @@ DATA_START_ROW = 3
 
 
 def get_output_path(numero: str, mese: str, anno: str) -> str:
-    return f"output/monitoraggio_N{numero}_{mese}{anno}.xlsx"
+    return f"output/DB_EXCEL/monitoraggio_N{numero}_{mese}{anno}.xlsx"
 
 
 def create_excel(template_path: str, output_path: str) -> None:
