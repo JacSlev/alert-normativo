@@ -43,6 +43,14 @@ def _next_id(ws) -> int:
     return max_id + 1
 
 
+def _first_empty_row(ws) -> int:
+    """Return the row number of the first row >= DATA_START_ROW where column A is None."""
+    for row_num in range(DATA_START_ROW, ws.max_row + 2):
+        if ws.cell(row_num, 1).value is None:
+            return row_num
+    return ws.max_row + 1
+
+
 def _format_sheet(ws) -> None:
     header_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
     header_font = Font(bold=True)
@@ -73,6 +81,7 @@ def append_news(output_path: str, news_items: list[dict]) -> int:
     existing_urls = _get_existing_urls(ws)
     next_id = _next_id(ws)
     today = date.today().strftime("%d/%m/%Y")
+    row_num = _first_empty_row(ws)
     added = 0
 
     for item in news_items:
@@ -80,7 +89,7 @@ def append_news(output_path: str, news_items: list[dict]) -> int:
         if url in existing_urls:
             print(f"[SKIP] Duplicato: {url}")
             continue
-        ws.append([
+        values = [
             next_id,
             item.get("categoria", ""),
             item.get("fonte", ""),
@@ -90,9 +99,12 @@ def append_news(output_path: str, news_items: list[dict]) -> int:
             item.get("descrizione", ""),
             item.get("includi_in_pptx", "NO"),
             url,
-        ])
+        ]
+        for col_idx, value in enumerate(values, 1):
+            ws.cell(row_num, col_idx).value = value
         existing_urls.add(url)
         next_id += 1
+        row_num += 1
         added += 1
 
     _format_sheet(ws)

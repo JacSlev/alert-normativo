@@ -9,7 +9,6 @@ from scraper.rss_scraper import scrape_rss
 from ai.synthesizer import synthesize_all
 from output.excel_logger import create_excel, append_news, get_output_path as excel_path
 from output.pptx_generator import generate_pptx, get_output_path as pptx_path
-from output.email_sender import send_notification
 
 
 def scrape():
@@ -36,20 +35,11 @@ def scrape():
     print(f"[OK] Excel salvato: {out_excel} ({added} notizie aggiunte)")
 
     counts = dict(Counter(item.get("categoria", "ALTRO") for item in synthesized))
-
-    if config.GMAIL_USER and config.GMAIL_APP_PASSWORD and config.EMAIL_NOTIFICA_DESTINATARIO:
-        send_notification(
-            gmail_user=config.GMAIL_USER,
-            gmail_password=config.GMAIL_APP_PASSWORD,
-            recipient=config.EMAIL_NOTIFICA_DESTINATARIO,
-            numero=config.EDIZIONE_NUMERO,
-            mese=config.EDIZIONE_MESE,
-            anno=config.EDIZIONE_ANNO,
-            excel_path=out_excel,
-            counts=counts,
-        )
-    else:
-        print("[WARN] Credenziali email non configurate — notifica saltata")
+    print("\nRiepilogo per categoria:")
+    for cat in ["BANKING", "INSURANCE", "CROSS FINANCE", "APPROFONDIMENTI"]:
+        print(f"  {cat}: {counts.get(cat, 0)}")
+    if "ALTRO" in counts:
+        print(f"  ALTRO: {counts['ALTRO']}")
 
 
 def publish():
