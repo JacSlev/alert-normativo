@@ -19,7 +19,7 @@ Il responsabile converte la PPTX in PDF e invia la newsletter manualmente.
 
 ## Stack
 
-- Python 3.11+
+- Python 3.11
 - `requests`, `beautifulsoup4`, `feedparser` per scraping
 - `anthropic` SDK per Claude API — modello **`claude-haiku-4-5`**
 - `openpyxl` per Excel
@@ -91,3 +91,10 @@ UPLOAD_DESTINATION=none
 # UPLOAD_DESTINATION=google_drive
 # UPLOAD_DESTINATION=onedrive
 ```
+## Version Control
+
+- Repository GitHub privato: `https://github.com/JacSlev/alert-normativo`
+- Sviluppo su PC personale (Mac, Python 3.11), test su PC aziendale (Windows, Python 3.11)
+- Flusso: `git push` da Mac → `git pull` su PC aziendale
+- Il file `.env` con le credenziali resta solo in locale, non va mai su GitHub
+- Per aggiungere un collaboratore: GitHub → Settings → Collaborators
