@@ -95,6 +95,22 @@ def _hide_shape(shape) -> None:
                 return
 
 
+def _set_cell_link(cell, url: str) -> None:
+    """Set cell text to 'Link' with a clickable hyperlink to url."""
+    tf = cell.text_frame
+    for para in tf.paragraphs:
+        for run in para.runs:
+            run.text = ""
+    if tf.paragraphs and tf.paragraphs[0].runs:
+        run = tf.paragraphs[0].runs[0]
+    elif tf.paragraphs:
+        run = tf.paragraphs[0].add_run()
+    else:
+        return
+    run.text = "Link"
+    run.hyperlink.address = url
+
+
 def _fill_section(table_shape, news_items: list[dict]) -> None:
     """Fill table rows with news items; clear unused rows."""
     tbl = table_shape.table
@@ -103,7 +119,7 @@ def _fill_section(table_shape, news_items: list[dict]) -> None:
             item = news_items[row_idx]
             _set_cell_text(row.cells[0], item["descrizione"])
             _set_cell_text(row.cells[1], item["data"])
-            _set_cell_text(row.cells[2], item["url"])
+            _set_cell_link(row.cells[2], item["url"])
         else:
             _clear_cell(row.cells[0])
             _clear_cell(row.cells[1])
