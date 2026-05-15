@@ -33,6 +33,10 @@ Rispondi SOLO con un array JSON, senza testo aggiuntivo.
 """
 
 
+def _strip_markdown_bold(text: str) -> str:
+    return text.replace("**", "")
+
+
 def synthesize_batch(client, news_items: list[dict], max_retries: int = 2) -> list[dict]:
     """Send up to 10 news items to Claude API and return structured results."""
     if not news_items:
@@ -57,6 +61,11 @@ def synthesize_batch(client, news_items: list[dict], max_retries: int = 2) -> li
             results = json.loads(response_text)
             if not isinstance(results, list):
                 raise ValueError(f"Expected JSON array, got {type(results).__name__}")
+            for item in results:
+                if isinstance(item.get("titolo"), str):
+                    item["titolo"] = _strip_markdown_bold(item["titolo"])
+                if isinstance(item.get("descrizione"), str):
+                    item["descrizione"] = _strip_markdown_bold(item["descrizione"])
             return results
         except (json.JSONDecodeError, ValueError) as e:
             if attempt < max_retries:

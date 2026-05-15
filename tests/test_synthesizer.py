@@ -1,7 +1,7 @@
 import json
 import pytest
 from unittest.mock import MagicMock
-from ai.synthesizer import synthesize_batch, synthesize_all
+from ai.synthesizer import synthesize_batch, synthesize_all, _strip_markdown_bold
 
 SAMPLE_NEWS = [
     {"title": "EBA publishes FRTB guidelines", "link": "https://eba.eu/1",
@@ -28,12 +28,29 @@ def make_mock_client(response_text):
     return mock_client
 
 
+def test_strip_markdown_bold():
+    assert _strip_markdown_bold("L'**EBA** ha pubblicato il **CRR**.") == "L'EBA ha pubblicato il CRR."
+    assert _strip_markdown_bold("nessun grassetto") == "nessun grassetto"
+    assert _strip_markdown_bold("") == ""
+
+
 def test_synthesize_batch_returns_parsed_list():
     client = make_mock_client(VALID_RESPONSE)
     results = synthesize_batch(client, SAMPLE_NEWS)
     assert len(results) == 2
     assert results[0]["categoria"] == "BANKING"
     assert results[1]["categoria"] == "INSURANCE"
+
+
+def test_synthesize_batch_strips_bold_from_titolo_and_descrizione():
+    client = make_mock_client(VALID_RESPONSE)
+    results = synthesize_batch(client, SAMPLE_NEWS)
+    # VALID_RESPONSE contains ** in descrizione — must be stripped
+    assert "**" not in results[0]["descrizione"]
+    assert "**" not in results[1]["descrizione"]
+    # titoli in VALID_RESPONSE have no **, but verify field is present and clean
+    assert "**" not in results[0]["titolo"]
+    assert "**" not in results[1]["titolo"]
 
 
 def test_synthesize_batch_retries_on_invalid_json():
