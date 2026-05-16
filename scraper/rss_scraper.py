@@ -1,5 +1,6 @@
 import feedparser
 from datetime import datetime, timedelta, timezone
+import config
 
 
 def scrape_rss(url: str, source_name: str, days: int) -> list[dict]:
@@ -34,5 +35,6 @@ def scrape_rss(url: str, source_name: str, days: int) -> list[dict]:
             "summary": getattr(entry, "summary", ""),
             "date": pub.strftime("%d/%m/%Y"),
             "source": source_name,
+            "ambito_fonte": config.FONTE_AMBITO.get(source_name, "CROSS FINANCE"),
         })
     return results

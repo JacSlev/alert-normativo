@@ -7,18 +7,75 @@ import anthropic
 import config
 from scraper.rss_scraper import scrape_rss
 from scraper.html_scraper import (
-    scrape_ivass_regolamenti,
-    scrape_insurance_europe_news,
-    scrape_ania_comunicati,
+    # IVASS (7 section pages)
+    scrape_ivass_regolamenti, scrape_ivass_provvedimenti, scrape_ivass_comunicazioni,
+    scrape_ivass_lettere, scrape_ivass_consultazioni, scrape_ivass_esiti_cons,
+    scrape_ivass_media,
+    # Insurance Europe
+    scrape_insurance_europe_news, scrape_insurance_europe_publications,
+    scrape_insurance_europe_events,
+    # ANIA (comunicati + pubblicazioni + 5 categorie)
+    scrape_ania_comunicati, scrape_ania_pubblicazioni,
+    scrape_ania_cat_111377, scrape_ania_cat_53704, scrape_ania_cat_53705,
+    scrape_ania_cat_53703, scrape_ania_cat_52472,
+    # EIOPA HTML
+    scrape_eiopa_events, scrape_eiopa_doc_library,
+    scrape_eiopa_speeches, scrape_eiopa_interviews,
+    # Banca d'Italia
+    scrape_bdi_homepage, scrape_bdi_archivio_norme, scrape_bdi_consultazioni,
+    scrape_bdi_approfondimenti, scrape_bdi_comunicati_bce,
+    # BIS/BCBS
+    scrape_bis_bcbs,
+    # Cross Finance
+    scrape_consob, scrape_gazzetta_ufficiale, scrape_eurlex,
+    scrape_icma, scrape_iosco,
+    scrape_commissione_europea, scrape_commissione_ue_news, scrape_efrag,
+    # IAIS
+    scrape_iais_news, scrape_iais_consultations, scrape_iais_events,
 )
 from ai.synthesizer import synthesize_all
 from output.excel_logger import create_excel, append_news, get_output_path as excel_path
 from output.pptx_generator import generate_pptx, get_output_path as pptx_path
 
 _HTML_SCRAPERS = {
-    "scrape_ivass_regolamenti": scrape_ivass_regolamenti,
-    "scrape_insurance_europe_news": scrape_insurance_europe_news,
-    "scrape_ania_comunicati": scrape_ania_comunicati,
+    "scrape_ivass_regolamenti":             scrape_ivass_regolamenti,
+    "scrape_ivass_provvedimenti":           scrape_ivass_provvedimenti,
+    "scrape_ivass_comunicazioni":           scrape_ivass_comunicazioni,
+    "scrape_ivass_lettere":                 scrape_ivass_lettere,
+    "scrape_ivass_consultazioni":           scrape_ivass_consultazioni,
+    "scrape_ivass_esiti_cons":              scrape_ivass_esiti_cons,
+    "scrape_ivass_media":                   scrape_ivass_media,
+    "scrape_insurance_europe_news":         scrape_insurance_europe_news,
+    "scrape_insurance_europe_publications": scrape_insurance_europe_publications,
+    "scrape_insurance_europe_events":       scrape_insurance_europe_events,
+    "scrape_ania_comunicati":               scrape_ania_comunicati,
+    "scrape_ania_pubblicazioni":            scrape_ania_pubblicazioni,
+    "scrape_ania_cat_111377":               scrape_ania_cat_111377,
+    "scrape_ania_cat_53704":                scrape_ania_cat_53704,
+    "scrape_ania_cat_53705":                scrape_ania_cat_53705,
+    "scrape_ania_cat_53703":                scrape_ania_cat_53703,
+    "scrape_ania_cat_52472":                scrape_ania_cat_52472,
+    "scrape_eiopa_events":                  scrape_eiopa_events,
+    "scrape_eiopa_doc_library":             scrape_eiopa_doc_library,
+    "scrape_eiopa_speeches":                scrape_eiopa_speeches,
+    "scrape_eiopa_interviews":              scrape_eiopa_interviews,
+    "scrape_bdi_homepage":                  scrape_bdi_homepage,
+    "scrape_bdi_archivio_norme":            scrape_bdi_archivio_norme,
+    "scrape_bdi_consultazioni":             scrape_bdi_consultazioni,
+    "scrape_bdi_approfondimenti":           scrape_bdi_approfondimenti,
+    "scrape_bdi_comunicati_bce":            scrape_bdi_comunicati_bce,
+    "scrape_bis_bcbs":                      scrape_bis_bcbs,
+    "scrape_consob":                        scrape_consob,
+    "scrape_gazzetta_ufficiale":            scrape_gazzetta_ufficiale,
+    "scrape_eurlex":                        scrape_eurlex,
+    "scrape_icma":                          scrape_icma,
+    "scrape_iosco":                         scrape_iosco,
+    "scrape_commissione_europea":           scrape_commissione_europea,
+    "scrape_commissione_ue_news":           scrape_commissione_ue_news,
+    "scrape_efrag":                         scrape_efrag,
+    "scrape_iais_news":                     scrape_iais_news,
+    "scrape_iais_consultations":            scrape_iais_consultations,
+    "scrape_iais_events":                   scrape_iais_events,
 }
 
 

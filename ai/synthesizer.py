@@ -20,7 +20,7 @@ Categorie disponibili:
 - INSURANCE: Solvency II, IRRD, IDD, IBIP, IVASS, EIOPA, IAIS, prodotti vita/danni.
 - CROSS FINANCE: normativa trasversale, MiFID II, ESG/SFDR/CSRD, DORA, MiCA, AI Act (cross-settoriale), Listing Act. Autorità: ESMA, Commissione Europea, FSB.
 - APPROFONDIMENTI: analisi, studi, statistiche, discussion paper senza scadenza, newsletter periodiche, webinar.
-Regola: in caso di dubbio BANKING > INSURANCE > CROSS FINANCE > APPROFONDIMENTI. Ogni notizia deve sempre avere una categoria.
+Regola di categorizzazione: il campo `ambito_fonte` indica l'ambito regolatorio della fonte di provenienza — usalo come riferimento prioritario per la categorizzazione. Puoi comunque assegnare APPROFONDIMENTI se la notizia è chiaramente un documento di analisi senza impatto normativo diretto. In caso di dubbio residuo: BANKING > INSURANCE > CROSS FINANCE > APPROFONDIMENTI. Ogni notizia deve sempre avere una categoria.
 """
 
 USER_PROMPT_TEMPLATE = """Analizza le seguenti notizie normative e per ciascuna restituisci un oggetto JSON con questi campi:
@@ -31,6 +31,8 @@ USER_PROMPT_TEMPLATE = """Analizza le seguenti notizie normative e per ciascuna 
 - data_originale: data pubblicazione in formato dd/mm/yyyy
 - url: link originale
 - includi_in_pptx: "SI" per BANKING, INSURANCE e CROSS FINANCE; "NO" per APPROFONDIMENTI
+
+Il campo `ambito_fonte` di ogni notizia indica l'ambito della fonte (BANKING/INSURANCE/CROSS FINANCE) — usalo come guida primaria per la categorizzazione.
 
 Notizie:
 {news_json}
