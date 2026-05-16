@@ -18,9 +18,17 @@ UPLOAD_DESTINATION = os.getenv("UPLOAD_DESTINATION", "none")
 # Paths
 ASSETS_DIR = "assets"
 OUTPUT_DIR = "output"
-TEMPLATE_XLSX = f"{ASSETS_DIR}/Template_settimanale.xlsx"
-TEMPLATE_PPTX = f"{ASSETS_DIR}/Template_settimanale.pptx"
-LINK_MONITORAGGIO = f"{ASSETS_DIR}/Link_Monitoraggio.xlsx"
+TEMPLATE_XLSX      = f"{ASSETS_DIR}/Template_settimanale.xlsx"
+TEMPLATE_PPTX_OLD  = f"{ASSETS_DIR}/Template_settimanale.pptx"   # vecchio template con slot TBD
+TEMPLATE_PPTX      = f"{ASSETS_DIR}/_CLEAN.pptx"                  # template clean — usato dal generatore
+LINK_MONITORAGGIO  = f"{ASSETS_DIR}/Link_Monitoraggio.xlsx"
+
+SECTION_ICONS = {
+    "BANKING":         f"{ASSETS_DIR}/icon_banking.png",
+    "INSURANCE":       f"{ASSETS_DIR}/icon_insurance.png",
+    "CROSS FINANCE":   f"{ASSETS_DIR}/icon_cross_finance.png",
+    "APPROFONDIMENTI": f"{ASSETS_DIR}/icon_approfondimenti.png",
+}
 
 # RSS sources
 RSS_SOURCES = [
