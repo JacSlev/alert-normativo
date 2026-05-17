@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Parametri edizione
-EDIZIONE_NUMERO = os.getenv("EDIZIONE_NUMERO", "1")
+EDIZIONE_NUMERO = os.getenv("EDIZIONE_NUMERO", "")  # Required for --publish; no default
 EDIZIONE_MESE = os.getenv("EDIZIONE_MESE", "Maggio")
 EDIZIONE_ANNO = os.getenv("EDIZIONE_ANNO", "2026")
 FINESTRA_GIORNI = int(os.getenv("FINESTRA_GIORNI", "7"))

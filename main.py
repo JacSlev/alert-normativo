@@ -119,6 +119,12 @@ def scrape():
 
 def publish():
     print("Fase 2 — Generazione PPTX in corso...")
+    if not config.EDIZIONE_NUMERO:
+        print(
+            "[ERRORE] EDIZIONE_NUMERO non è valorizzato nel file .env.\n"
+            "         Aggiungere la riga:  EDIZIONE_NUMERO=<numero>  nel .env e riprovare."
+        )
+        sys.exit(1)
     out_excel = excel_path(config.EDIZIONE_NUMERO, config.EDIZIONE_MESE, config.EDIZIONE_ANNO)
     out_pptx = pptx_path(config.EDIZIONE_NUMERO, config.EDIZIONE_MESE, config.EDIZIONE_ANNO)
     generate_pptx(
