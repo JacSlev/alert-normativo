@@ -21,11 +21,11 @@ Colonne:
 import os
 import textwrap
 from datetime import date
-from openpyxl import load_workbook
 from pptx import Presentation
 from pptx.util import Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
+from output.excel_logger import read_approved_news as _read_approved_news
 
 # ── Struttura slide ───────────────────────────────────────────────────────────
 SLIDE_W = 7559675
@@ -61,26 +61,12 @@ DATA_START_ROW  = 3
 
 # ── Lettura Excel ─────────────────────────────────────────────────────────────
 
-def read_approved_news(excel_path: str) -> dict:
-    """Leggi l'Excel revisionato e raggruppa le notizie con includi_in_pptx=SI."""
-    wb = load_workbook(excel_path)
-    ws = wb["Monitoraggio finance"]
-    grouped: dict = {cat: [] for cat in CATEGORY_ORDER}
-    for row in ws.iter_rows(min_row=DATA_START_ROW, values_only=True):
-        if row[0] is None:
-            continue
-        includi = str(row[7]).strip().upper() if row[7] else "NO"
-        if includi != "SI":
-            continue
-        categoria = str(row[1]).strip() if row[1] else ""
-        if categoria not in grouped:
-            grouped[categoria] = []
-        grouped[categoria].append({
-            "descrizione": row[6] or "",
-            "data":        row[3] or "",
-            "url":         row[8] or "",
-        })
-    return grouped
+def read_approved_news(excel_path: str, edizione_numero: str) -> dict:
+    """Wrapper — delegates to excel_logger.read_approved_news (DRY).
+
+    Filters col H = SI and col J = edizione_numero.
+    """
+    return _read_approved_news(excel_path, edizione_numero=edizione_numero)
 
 
 # ── Utilità slide ─────────────────────────────────────────────────────────────
@@ -189,13 +175,16 @@ def generate_pptx(
     numero: str,
     mese: str,
     anno: str,
+    edizione_numero: str = "",
 ) -> None:
     """Genera la PPTX dal template (6 slide pre-esistenti) e dall'Excel revisionato.
 
     Paginazione: scorre le slide del template in ordine; quando current_y supera
     BOTTOM_CONTENT_Y passa alla slide successiva. Le slide vuote non vengono eliminate.
+
+    edizione_numero: valore atteso in col J — se vuoto, usa `numero` come fallback.
     """
-    grouped = read_approved_news(excel_path)
+    grouped = read_approved_news(excel_path, edizione_numero=edizione_numero or numero)
 
     prs    = Presentation(template_path)
     slides = list(prs.slides)

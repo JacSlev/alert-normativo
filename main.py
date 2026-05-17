@@ -134,6 +134,7 @@ def publish():
         numero=config.EDIZIONE_NUMERO,
         mese=config.EDIZIONE_MESE,
         anno=config.EDIZIONE_ANNO,
+        edizione_numero=config.EDIZIONE_NUMERO,
     )
 
 

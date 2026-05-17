@@ -13,6 +13,8 @@ from openpyxl.utils import get_column_letter
 HEADER_ROW = 2
 DATA_START_ROW = 3
 
+CATEGORY_ORDER = ["BANKING", "INSURANCE", "CROSS FINANCE", "APPROFONDIMENTI"]
+
 
 def get_output_path(numero: str, mese: str, anno: str) -> str:
     return f"output/DB_EXCEL/monitoraggio_N{numero}_{mese}{anno}.xlsx"
@@ -110,3 +112,38 @@ def append_news(output_path: str, news_items: list[dict]) -> int:
     _format_sheet(ws)
     wb.save(output_path)
     return added
+
+
+def read_approved_news(excel_path: str, edizione_numero: str) -> dict:
+    """Read the reviewed Excel file and return approved news grouped by category.
+
+    Filters:
+    - Column H (index 7) = "SI"     — approved by the reviewer
+    - Column J (index 9) = edizione_numero — belongs to this edition
+
+    Returns a dict keyed by category name (CATEGORY_ORDER), each value a list of:
+        {"descrizione": str, "data": str, "url": str, "fonte": str}
+    """
+    wb = load_workbook(excel_path)
+    ws = wb["Monitoraggio finance"]
+    grouped: dict = {cat: [] for cat in CATEGORY_ORDER}
+
+    for row in ws.iter_rows(min_row=DATA_START_ROW, values_only=True):
+        if row[0] is None:
+            continue
+        includi = str(row[7]).strip().upper() if row[7] else "NO"
+        if includi != "SI":
+            continue
+        edizione = str(row[9]).strip() if len(row) > 9 and row[9] is not None else ""
+        if edizione != str(edizione_numero).strip():
+            continue
+        categoria = str(row[1]).strip() if row[1] else ""
+        if categoria not in grouped:
+            grouped[categoria] = []
+        grouped[categoria].append({
+            "descrizione": row[6] or "",
+            "data":        row[3] or "",
+            "url":         row[8] or "",
+            "fonte":       row[2] or "",
+        })
+    return grouped
