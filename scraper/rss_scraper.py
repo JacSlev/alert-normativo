@@ -1,10 +1,15 @@
+# scraper/rss_scraper.py
 import feedparser
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import config
+from scraper.date_utils import iso_week_cutoff
 
 
-def scrape_rss(url: str, source_name: str, days: int) -> list[dict]:
-    """Parse RSS feed and return news items from the last `days` days.
+def scrape_rss(url: str, source_name: str, days: int = 7) -> list[dict]:
+    """Parse RSS feed and return news items from the current ISO week (Mon–Sun).
+
+    The `days` parameter is accepted for backward compatibility but is not used;
+    the cutoff is always Monday 00:00:00 UTC of the current ISO week.
 
     Note: feedparser documents published_parsed as UTC 9-tuple.
     Date key stores dd/mm/yyyy only (time-of-day discarded).
@@ -19,7 +24,7 @@ def scrape_rss(url: str, source_name: str, days: int) -> list[dict]:
         print(f"[ERRORE] RSS {source_name} ({url}): {feed.bozo_exception}")
         return []
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = iso_week_cutoff()
     results = []
     for entry in feed.entries:
         try:
