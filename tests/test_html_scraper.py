@@ -54,7 +54,7 @@ IVASS_HTML_P1 = """
 <html><body>
 <div class="ivass-doc-list">
   <ul>
-    <li><a href="/normativa/2026/n58/index.html">Regolamento IVASS n. 58 del 10 maggio 2026</a></li>
+    <li><a href="/normativa/2026/n58/index.html">Regolamento IVASS n. 58 del 12 maggio 2026</a></li>
     <li><a href="/normativa/2026/n57/index.html">Regolamento IVASS n. 57 del 9 febbraio 2026</a></li>
   </ul>
 </div>
@@ -70,18 +70,23 @@ def test_scrape_ivass_returns_recent_items():
     with patch("scraper.html_scraper.requests.get",
                side_effect=[_mock_response(IVASS_HTML_P1), _mock_response(IVASS_HTML_EMPTY)]):
         results = scrape_ivass_regolamenti(days=7)
-    # Only the May 10 item is within 7 days of today (2026-05-15)
+    # May 12 (Tue) is within the current ISO week (Mon 2026-05-11)
     assert len(results) == 1
     assert results[0]["source"] == "IVASS"
-    assert results[0]["date"] == "10/05/2026"
+    assert results[0]["date"] == "12/05/2026"
     assert results[0]["link"] == "https://www.ivass.it/normativa/2026/n58/index.html"
 
 
-def test_scrape_ivass_filters_old_items():
+def test_scrape_ivass_excludes_pre_week_items():
+    """Items dated before the current ISO week start (Mon 2026-05-11) are excluded."""
+    html_pre_week = """
+    <div class="ivass-doc-list"><ul>
+    <li><a href="/normativa/2026/n55/index.html">Regolamento IVASS n. 55 del 9 maggio 2026</a></li>
+    </ul></div>"""
+    # May 9 is Saturday of the PREVIOUS ISO week → excluded
     with patch("scraper.html_scraper.requests.get",
-               return_value=_mock_response(IVASS_HTML_P1)):
-        results = scrape_ivass_regolamenti(days=3)
-    # Both items older than 3 days → 0 results, no second page fetch
+               side_effect=[_mock_response(html_pre_week), _mock_response(IVASS_HTML_EMPTY)]):
+        results = scrape_ivass_regolamenti(days=7)
     assert len(results) == 0
 
 
@@ -137,10 +142,14 @@ def test_scrape_insurance_europe_returns_recent():
     assert results[0]["source"] == "Insurance Europe"
 
 
-def test_scrape_insurance_europe_filters_old():
+def test_scrape_insurance_europe_days_param_ignored():
+    """The `days` param is deprecated — ISO week boundary is always used.
+    May 11 is the Monday of the current ISO week, so it is included
+    regardless of the `days` argument passed."""
     with patch("scraper.html_scraper.requests.get", return_value=_mock_response(IE_HTML)):
         results = scrape_insurance_europe_news(days=3)
-    assert len(results) == 0
+    # May 11 is the ISO week start → still included even with days=3
+    assert len(results) == 1
 
 
 def test_scrape_insurance_europe_empty_on_error():
@@ -163,11 +172,11 @@ def test_scrape_insurance_europe_no_date_skipped():
 # ANIA comunicati (Selenium mock)
 # ---------------------------------------------------------------------------
 
-# 2026-05-09 is 6 days ago (within 7d window, outside 3d window)
+# May 12 is Tuesday of the current ISO week (Mon 2026-05-11)
 ANIA_HTML = """
 <html><body>
   <div class="thumb-pubblicazioni">
-    <div class="thumb-pubblicazioni-date">09 Maggio 2026</div>
+    <div class="thumb-pubblicazioni-date">12 Maggio 2026</div>
     <div class="thumb-pubblicazioni-title">
       <a href="/comunicati/comunicato-recente">Comunicato stampa ANIA — maggio 2026</a>
     </div>
@@ -189,15 +198,26 @@ def test_scrape_ania_returns_recent():
         results = scrape_ania_comunicati(days=7)
     assert len(results) == 1
     assert results[0]["source"] == "ANIA"
-    assert results[0]["date"] == "09/05/2026"
+    assert results[0]["date"] == "12/05/2026"
     assert results[0]["link"] == "https://www.ania.it/comunicati/comunicato-recente"
 
 
-def test_scrape_ania_filters_old():
+def test_scrape_ania_excludes_pre_week_items():
+    """Items dated before the current ISO week start are excluded."""
+    ania_pre_week = """
+    <html><body>
+      <div class="thumb-pubblicazioni">
+        <div class="thumb-pubblicazioni-date">09 Maggio 2026</div>
+        <div class="thumb-pubblicazioni-title">
+          <a href="/comunicati/comunicato-old">Comunicato del sabato scorso</a>
+        </div>
+      </div>
+    </body></html>"""
+    # May 9 is Saturday of the PREVIOUS ISO week → excluded
     with patch("scraper.html_scraper._get_selenium") as mock_sel:
         from bs4 import BeautifulSoup
-        mock_sel.return_value = BeautifulSoup(ANIA_HTML, "html.parser")
-        results = scrape_ania_comunicati(days=3)
+        mock_sel.return_value = BeautifulSoup(ania_pre_week, "html.parser")
+        results = scrape_ania_comunicati(days=7)
     assert len(results) == 0
 
 

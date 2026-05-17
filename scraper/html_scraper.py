@@ -20,6 +20,7 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 import config
+from scraper.date_utils import iso_week_cutoff
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +46,12 @@ MESI_EN = {
 
 # ── Date parsers ──────────────────────────────────────────────────────────────
 
-def _cutoff(days: int) -> datetime:
-    return datetime.now(timezone.utc) - timedelta(days=days)
+def _cutoff(days: int = 7) -> datetime:
+    """Return Monday 00:00:00 UTC of the current ISO week.
+
+    The `days` parameter is accepted for backward compatibility but is ignored.
+    """
+    return iso_week_cutoff()
 
 
 def _get(url: str) -> Optional[BeautifulSoup]:
