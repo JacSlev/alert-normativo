@@ -20,9 +20,28 @@ def get_output_path(numero: str, mese: str, anno: str) -> str:
     return f"output/DB_EXCEL/monitoraggio_N{numero}_{mese}{anno}.xlsx"
 
 
-def create_excel(template_path: str, output_path: str) -> None:
+def ensure_excel_exists(template_path: str, output_path: str) -> bool:
+    """Copy template to output_path if it does not already exist.
+
+    Returns True if the file was created, False if it already existed.
+    """
+    if os.path.exists(output_path):
+        return False
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     shutil.copy(template_path, output_path)
+    return True
+
+
+def count_existing_rows(output_path: str) -> int:
+    """Return the number of data rows (column A not None) in 'Monitoraggio finance'."""
+    wb = load_workbook(output_path, read_only=True)
+    ws = wb["Monitoraggio finance"]
+    count = 0
+    for row in ws.iter_rows(min_row=DATA_START_ROW, values_only=True):
+        if row[0] is not None:
+            count += 1
+    wb.close()
+    return count
 
 
 def _get_existing_urls(ws) -> set:

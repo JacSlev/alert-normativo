@@ -3,7 +3,7 @@ import os
 import shutil
 import openpyxl
 from openpyxl import load_workbook
-from output.excel_logger import create_excel, append_news, get_output_path, read_approved_news
+from output.excel_logger import ensure_excel_exists, count_existing_rows, append_news, get_output_path, read_approved_news
 
 SAMPLE_NEWS = [
     {"categoria": "BANKING", "fonte": "EBA",
@@ -31,12 +31,41 @@ def test_get_output_path_format():
     assert path == "output/DB_EXCEL/monitoraggio_N2_Maggio2026.xlsx"
 
 
-def test_create_excel_copies_template(tmp_path):
+def test_ensure_excel_exists_creates_file(tmp_path):
+    """File mancante → viene creato, restituisce True."""
     if not os.path.exists(TEMPLATE_PATH):
         pytest.skip("Template XLSX non trovato")
     dest = str(tmp_path / "out.xlsx")
-    create_excel(TEMPLATE_PATH, dest)
+    result = ensure_excel_exists(TEMPLATE_PATH, dest)
+    assert result is True
     assert os.path.exists(dest)
+
+
+def test_ensure_excel_exists_does_not_overwrite(tmp_path):
+    """File già esistente → non viene toccato, restituisce False."""
+    if not os.path.exists(TEMPLATE_PATH):
+        pytest.skip("Template XLSX non trovato")
+    dest = str(tmp_path / "out.xlsx")
+    shutil.copy(TEMPLATE_PATH, dest)
+    mtime_before = os.path.getmtime(dest)
+    result = ensure_excel_exists(TEMPLATE_PATH, dest)
+    assert result is False
+    assert os.path.getmtime(dest) == mtime_before
+
+
+def test_count_existing_rows_empty(tmp_path):
+    """Template appena copiato (nessuna riga dati) → 0."""
+    if not os.path.exists(TEMPLATE_PATH):
+        pytest.skip("Template XLSX non trovato")
+    dest = str(tmp_path / "out.xlsx")
+    shutil.copy(TEMPLATE_PATH, dest)
+    assert count_existing_rows(dest) == 0
+
+
+def test_count_existing_rows_after_append(output_path):
+    """Dopo append_news con 2 notizie → count_existing_rows restituisce 2."""
+    append_news(output_path, SAMPLE_NEWS)
+    assert count_existing_rows(output_path) == 2
 
 
 def test_append_news_writes_rows(output_path):

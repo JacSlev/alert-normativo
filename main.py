@@ -37,7 +37,7 @@ from scraper.html_scraper import (
     scrape_amla_news, scrape_amla_publications,
 )
 from ai.synthesizer import synthesize_all
-from output.excel_logger import create_excel, append_news, get_output_path as excel_path
+from output.excel_logger import ensure_excel_exists, count_existing_rows, append_news, get_output_path as excel_path
 from output.pptx_generator import generate_pptx, get_output_path as pptx_path
 
 _HTML_SCRAPERS = {
@@ -111,9 +111,16 @@ def scrape():
     print(f"Totale notizie elaborate: {len(synthesized)}")
 
     out_excel = excel_path(config.EDIZIONE_NUMERO, config.EDIZIONE_MESE, config.EDIZIONE_ANNO)
-    create_excel(config.TEMPLATE_XLSX, out_excel)
+
+    created = ensure_excel_exists(config.TEMPLATE_XLSX, out_excel)
+    if created:
+        print("[INFO] Creato nuovo Excel da template")
+    else:
+        existing = count_existing_rows(out_excel)
+        print(f"[INFO] Uso Excel esistente — {existing} notizie già presenti")
+
     added = append_news(out_excel, synthesized)
-    print(f"[OK] Excel salvato: {out_excel} ({added} notizie aggiunte)")
+    print(f"[OK] Excel salvato: {out_excel} ({added} nuove notizie aggiunte)")
 
     counts = dict(Counter(item.get("categoria", "ALTRO") for item in synthesized))
     print("\nRiepilogo per categoria:")
