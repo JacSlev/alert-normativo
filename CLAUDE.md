@@ -5,7 +5,7 @@
 Script Python che automatizza la produzione della newsletter normativa settimanale "Alert Normativo" di SCS Consulting. Il flusso è diviso in due fasi lanciate manualmente dall'operatore:
 
 **Fase 1 — `--scrape`:**
-1. Scraping notizie da ~50 fonti RSS e HTML (→ `docs/fonti.md`)
+1. Scraping notizie da ~56 fonti RSS e HTML (→ `docs/fonti.md`)
 2. Sintesi e categorizzazione via Claude API (→ `docs/categorizzazione.md`)
 3. Salvataggio Excel in `output/DB_EXCEL/` (→ `docs/excel_schema.md`)
 4. Notifica manuale al responsabile (email non ancora implementata → `docs/email_config.md`)

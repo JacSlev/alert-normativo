@@ -21,6 +21,9 @@ Legenda accesso: **RSS** = feedparser, **HTML** = requests + BeautifulSoup4, **S
 | Banca d'Italia — Approfondimenti | https://www.bancaditalia.it/media/approfondimenti/ | Selenium |
 | Banca d'Italia — Comunicati BCE | https://www.bancaditalia.it/media/bce-comunicati/ | Selenium |
 | BIS/BCBS | https://www.bis.org/bcbs/publications.htm | Selenium |
+| BCE — Pubblicazioni tecniche | https://www.ecb.europa.eu/pub/pubbydate/html/index.en.html | Selenium |
+| AMLA — News | https://www.amla.europa.eu/news-media/news-articles_en (RSS: /node/19/rss_en) | HTML (RSS interno) |
+| AMLA — Document library | https://www.amla.europa.eu/resources/document-library_en (RSS: /node/105/rss_en) | HTML (RSS interno) |
 
 ---
 
@@ -82,7 +85,9 @@ Legenda accesso: **RSS** = feedparser, **HTML** = requests + BeautifulSoup4, **S
 - **Deduplicazione:** confronto su URL — le notizie già presenti nell'Excel non vengono reinserite
 - **Timeout richieste:** 15 secondi per HTTP statico, 20 secondi per Selenium
 - **Errori per fonte:** se una fonte è irraggiungibile, lo script logga l'errore e continua con le altre
-- **Best-effort:** EUR-Lex e IOSCO possono restituire 0 notizie se il sito blocca lo scraping con 403/202
+- **Best-effort:** EUR-Lex, IOSCO e AMLA possono restituire 0 notizie se il sito è irraggiungibile o blocca l'accesso
+- **BCE Publications:** la pagina `pub/pubbydate` è JS-rendered; usa Selenium. Il feed RSS BCE esistente copre solo press release e discorsi — non i documenti tecnici/working papers
+- **AMLA:** le funzioni usano internamente i feed RSS ufficiali AMLA; in caso di errore loggano `[WARNING]` e restituiscono lista vuota
 - **IAIS:** dominio migrato da `iaisweb.org` a `iais.org` (aggiornato nel codice)
 - **IVASS Consultazioni:** URL aggiornata da `/pubb-cons/index.html` a `/pubbliche-consultazioni/index.html`
 - **IVASS Media:** URL aggiornata da `/media/index.html` a `/media/comunicati/index.html`
