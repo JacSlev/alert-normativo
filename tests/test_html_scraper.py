@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
+from bs4 import BeautifulSoup
 
 from scraper.html_scraper import (
     scrape_ivass_regolamenti,
@@ -8,6 +9,9 @@ from scraper.html_scraper import (
     scrape_ania_comunicati,
     _parse_italian_date,
     _parse_numeric_date,
+    scrape_bce_publications,
+    scrape_amla_news,
+    scrape_amla_publications,
 )
 
 # ---------------------------------------------------------------------------
@@ -225,3 +229,133 @@ def test_scrape_ania_returns_empty_on_selenium_failure():
     with patch("scraper.html_scraper._get_selenium", return_value=None):
         results = scrape_ania_comunicati(days=7)
     assert results == []
+
+
+# ---------------------------------------------------------------------------
+# BCE Publications
+# ---------------------------------------------------------------------------
+
+BCE_HTML_IN_WINDOW = """
+<html><body>
+<dl>
+  <dt>12 May 2026</dt>
+  <dd><a href="/pub/research/working-papers/2026/html/ecb.wp2601.en.html">Working Paper on FRTB capital requirements</a></dd>
+  <dt>4 May 2026</dt>
+  <dd><a href="/pub/economic-bulletin/2026/html/ecb.eb202605.en.html">Economic Bulletin Issue 4/2026</a></dd>
+</dl>
+</body></html>
+"""
+
+# Today is 2026-05-18 (Monday). iso_week_cutoff() returns 2026-05-11 (previous Monday).
+# Previous ISO week: Mon 2026-05-11 to Sun 2026-05-17.
+# May 12 (Tue) → within window → included
+# May 4 (Sun) → before cutoff (< May 11) → excluded
+
+
+def test_scrape_bce_publications_includes_in_window():
+    with patch("scraper.html_scraper._get_selenium",
+               return_value=BeautifulSoup(BCE_HTML_IN_WINDOW, "html.parser")):
+        results = scrape_bce_publications(days=7)
+    assert len(results) == 1
+    assert results[0]["source"] == "BCE Publications"
+    assert results[0]["date"] == "12/05/2026"
+    assert "ecb.wp2601" in results[0]["link"]
+
+
+def test_scrape_bce_publications_excludes_pre_week():
+    html_old = """
+    <dl>
+      <dt>4 May 2026</dt>
+      <dd><a href="/pub/economic-bulletin/2026/html/ecb.eb.en.html">Old bulletin</a></dd>
+    </dl>"""
+    with patch("scraper.html_scraper._get_selenium",
+               return_value=BeautifulSoup(html_old, "html.parser")):
+        results = scrape_bce_publications(days=7)
+    assert results == []
+
+
+def test_scrape_bce_publications_returns_empty_on_selenium_failure():
+    with patch("scraper.html_scraper._get_selenium", return_value=None):
+        results = scrape_bce_publications(days=7)
+    assert results == []
+
+
+def test_scrape_bce_publications_deduplicates():
+    html_dup = """
+    <dl>
+      <dt>12 May 2026</dt>
+      <dd><a href="/pub/wp1.en.html">Paper A</a></dd>
+      <dd><a href="/pub/wp1.en.html">Paper A duplicate</a></dd>
+    </dl>"""
+    with patch("scraper.html_scraper._get_selenium",
+               return_value=BeautifulSoup(html_dup, "html.parser")):
+        results = scrape_bce_publications(days=7)
+    assert len(results) == 1
+
+
+# ---------------------------------------------------------------------------
+# AMLA
+# ---------------------------------------------------------------------------
+
+def _amla_feed(entries: list) -> MagicMock:
+    mock_feed = MagicMock()
+    mock_feed.entries = entries
+    return mock_feed
+
+
+def _amla_entry(title: str, link: str, days_ago: int) -> MagicMock:
+    from datetime import timedelta
+    pub = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    entry = MagicMock()
+    entry.title = title
+    entry.link = link
+    entry.summary = ""
+    entry.published_parsed = pub.timetuple()
+    return entry
+
+
+# Today = 2026-05-18. iso_week_cutoff() = 2026-05-11 (previous Monday).
+# 5 days ago = 2026-05-13 (Wed) → within window → included
+# 15 days ago = 2026-05-03 → before cutoff → excluded
+
+
+def test_scrape_amla_news_includes_recent():
+    entry_in = _amla_entry("AMLA publishes template", "/amla-template_en", days_ago=5)
+    with patch("feedparser.parse", return_value=_amla_feed([entry_in])):
+        results = scrape_amla_news(days=7)
+    assert len(results) == 1
+    assert results[0]["source"] == "AMLA"
+    assert results[0]["link"] == "https://www.amla.europa.eu/amla-template_en"
+
+
+def test_scrape_amla_news_excludes_old():
+    entry_old = _amla_entry("Old news", "/old-news_en", days_ago=15)
+    with patch("feedparser.parse", return_value=_amla_feed([entry_old])):
+        results = scrape_amla_news(days=7)
+    assert results == []
+
+
+def test_scrape_amla_news_absolute_link_unchanged():
+    entry = _amla_entry("Doc", "https://www.amla.europa.eu/doc_en", days_ago=5)
+    with patch("feedparser.parse", return_value=_amla_feed([entry])):
+        results = scrape_amla_news(days=7)
+    assert results[0]["link"] == "https://www.amla.europa.eu/doc_en"
+
+
+def test_scrape_amla_news_returns_empty_on_error():
+    with patch("feedparser.parse", side_effect=Exception("network error")):
+        results = scrape_amla_news(days=7)
+    assert results == []
+
+
+def test_scrape_amla_publications_includes_recent():
+    entry_in = _amla_entry(
+        "RTS draft under Art. 31",
+        "https://www.amla.europa.eu/document/download/abc123_en",
+        days_ago=6,
+    )
+    with patch("feedparser.parse", return_value=_amla_feed([entry_in])):
+        results = scrape_amla_publications(days=7)
+    assert len(results) == 1
+    assert results[0]["source"] == "AMLA"
+    assert "abc123" in results[0]["link"]

@@ -939,3 +939,106 @@ def scrape_gazzetta_ufficiale(days: int) -> list:
         })
     logger.info("GU: %d notizie in %d giorni", len(results), days)
     return results
+
+
+# ── BCE Publications ──────────────────────────────────────────────────────────
+# Page https://www.ecb.europa.eu/pub/pubbydate/html/index.en.html is fully
+# JS-rendered. Selenium required. DOM: <dl> with <dt> date headings ("12 May 2026")
+# and <dd> publication items. Publications are in reverse-chronological order.
+
+def scrape_bce_publications(days: int) -> list:
+    """BCE publications by date — Selenium-rendered <dl>/<dt>/<dd> structure."""
+    cutoff = _cutoff(days)
+    results = []
+    url = "https://www.ecb.europa.eu/pub/pubbydate/html/index.en.html"
+    soup = _get_selenium(url, wait_css="dl, main, .content", wait_sec=25)
+    if not soup:
+        logger.warning("[WARNING] BCE Publications: Selenium returned no content")
+        return []
+    try:
+        seen: set = set()
+        current_date = None
+        for el in soup.select("dt, dd"):
+            if el.name == "dt":
+                current_date = _parse_english_date(el.get_text(" ", strip=True))
+            elif el.name == "dd" and current_date is not None:
+                if current_date < cutoff:
+                    break  # list is reverse-chronological; nothing newer follows
+                a = el.find("a", href=True)
+                if not a:
+                    continue
+                title = a.get_text(strip=True)
+                href = a.get("href", "")
+                if not href or not title:
+                    continue
+                link = href if href.startswith("http") else "https://www.ecb.europa.eu" + href
+                if link in seen:
+                    continue
+                seen.add(link)
+                results.append({
+                    "title": title,
+                    "link": link,
+                    "summary": "",
+                    "date": current_date.strftime("%d/%m/%Y"),
+                    "source": "BCE Publications",
+                    "ambito_fonte": config.FONTE_AMBITO.get("BCE Publications", "BANKING"),
+                })
+    except Exception as e:
+        logger.warning("[WARNING] BCE Publications parsing error: %s", e)
+    logger.info("BCE Publications: %d notizie in %d giorni", len(results), days)
+    return results
+
+
+# ── AMLA ─────────────────────────────────────────────────────────────────────
+# AMLA (Anti-Money Laundering Authority) provides official RSS feeds.
+# News:          https://www.amla.europa.eu/node/19/rss_en
+# Document lib:  https://www.amla.europa.eu/node/105/rss_en
+# RSS date format: RFC 2822 — "Wed, 13 May 2026 19:17:46 +0200"
+# News links are relative (/slug_en) → prepend _AMLA_BASE.
+# Publication links are absolute PDF download URLs.
+# Best-effort: returns [] on any error (403, network, parse failure).
+
+_AMLA_BASE = "https://www.amla.europa.eu"
+
+
+def _scrape_amla_rss(rss_url: str, label: str, days: int) -> list:
+    """Fetch AMLA RSS feed and return news items within the ISO week window."""
+    import feedparser as _feedparser
+    cutoff = _cutoff(days)
+    results = []
+    try:
+        feed = _feedparser.parse(rss_url)
+        for entry in feed.entries:
+            try:
+                pub = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+            except (AttributeError, TypeError):
+                continue
+            if pub < cutoff:
+                continue
+            link = getattr(entry, "link", "") or ""
+            if link and not link.startswith("http"):
+                link = _AMLA_BASE + link
+            results.append({
+                "title": getattr(entry, "title", ""),
+                "link": link,
+                "summary": getattr(entry, "summary", "") or "",
+                "date": pub.strftime("%d/%m/%Y"),
+                "source": "AMLA",
+                "ambito_fonte": config.FONTE_AMBITO.get("AMLA", "BANKING"),
+            })
+    except Exception as e:
+        logger.warning("[WARNING] AMLA %s: %s", label, e)
+    logger.info("AMLA %s: %d notizie in %d giorni", label, len(results), days)
+    return results
+
+
+def scrape_amla_news(days: int) -> list:
+    return _scrape_amla_rss(
+        "https://www.amla.europa.eu/node/19/rss_en", "news", days
+    )
+
+
+def scrape_amla_publications(days: int) -> list:
+    return _scrape_amla_rss(
+        "https://www.amla.europa.eu/node/105/rss_en", "publications", days
+    )
