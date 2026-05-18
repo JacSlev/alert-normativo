@@ -20,7 +20,7 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 import config
-from scraper.date_utils import iso_week_cutoff, previous_iso_week_window
+from scraper.date_utils import previous_iso_week_window
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +46,14 @@ MESI_EN = {
 
 # ── Date parsers ──────────────────────────────────────────────────────────────
 
-def _cutoff(days: int = 7) -> datetime:
-    """Return Monday 00:00:00 UTC of the previous ISO week (start of window).
+def _cutoff(days: int = 7) -> tuple:
+    """Return (start, end) of the previous ISO week as UTC datetimes.
 
+    start = prev_monday 00:00 UTC (inclusive)
+    end   = this_monday 00:00 UTC (exclusive)
     The `days` parameter is accepted for backward compatibility but is ignored.
-    All scrapers use this as: pub >= _cutoff() → item is in the previous week window.
     """
-    start, _end = previous_iso_week_window()
-    return start
+    return previous_iso_week_window()
 
 
 def _get(url: str) -> Optional[BeautifulSoup]:
@@ -180,7 +180,7 @@ _IVASS_BASE = "https://www.ivass.it"
 
 def _scrape_ivass_page(url: str, source_label: str, days: int) -> list:
     """Generic IVASS section scraper. All IVASS pages use div.ivass-doc-list."""
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     page = 1
     while True:
@@ -210,7 +210,7 @@ def _scrape_ivass_page(url: str, source_label: str, days: int) -> list:
                 pub = _parse_italian_date(title)
             if pub is None:
                 continue
-            if pub < cutoff:
+            if not (start <= pub < end):
                 continue
             found_recent = True
             results.append({
@@ -234,7 +234,7 @@ def _scrape_ie_page(url: str, card_class: str, days: int) -> list:
     """Generic Insurance Europe page scraper.
     card_class: 'el-objectnews' | 'el-objectpublication' | 'el-objectevent'
     """
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get(url)
     if not soup:
@@ -256,7 +256,7 @@ def _scrape_ie_page(url: str, card_class: str, days: int) -> list:
         if pub is None:
             # Events often have "28 May 2026" as first text
             pub = _parse_english_date(card.get_text(" ", strip=True))
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
 
         results.append({
@@ -276,7 +276,7 @@ def _scrape_ecl_page(url: str, source_name: str, days: int,
     """Generic ECL scraper for EIOPA / Commissione Europea pages.
     Date is embedded in item text as 'DD Mon YYYY' (EN) or 'DD mese YYYY' (IT).
     """
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get(url)
     if not soup:
@@ -291,7 +291,7 @@ def _scrape_ecl_page(url: str, source_name: str, days: int,
 
         text = item.get_text(" ", strip=True)
         pub = _parse_english_date(text) or _parse_italian_date(text)
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
 
         results.append({
@@ -310,7 +310,7 @@ _ANIA_BASE = "https://www.ania.it"
 
 def _scrape_ania_page(url: str, days: int) -> list:
     """Generic ANIA Selenium scraper. All ANIA pages use div.thumb-pubblicazioni."""
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get_selenium(url, wait_css="div.thumb-pubblicazioni")
     if not soup:
@@ -324,7 +324,7 @@ def _scrape_ania_page(url: str, days: int) -> list:
         href = title_el.get("href", "")
         link = href if href.startswith("http") else _ANIA_BASE + href
         pub = _parse_italian_date(date_el.get_text(strip=True))
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
         results.append({
             "title": title,
@@ -416,7 +416,7 @@ def scrape_ania_cat_52472(days: int) -> list:
 
 def _scrape_eiopa_page(url: str, label: str, days: int) -> list:
     """EIOPA pages use article.ecl-content-item with <time> for date — static requests."""
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get(url)
     if not soup:
@@ -435,7 +435,7 @@ def _scrape_eiopa_page(url: str, label: str, days: int) -> list:
         time_el = item.find("time")
         date_text = time_el.get_text(" ", strip=True) if time_el else item.get_text(" ", strip=True)
         pub = _parse_english_date(date_text) or _parse_italian_date(date_text)
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
         seen.add(link)
         results.append({
@@ -468,7 +468,7 @@ def scrape_eiopa_interviews(days: int) -> list:
 _CONSOB_BASE = "https://www.consob.it"
 
 def scrape_consob(days: int) -> list:
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get(_CONSOB_BASE + "/web/area-pubblica/home")
     if not soup:
@@ -484,7 +484,7 @@ def scrape_consob(days: int) -> list:
 
         # Date is "(DD mese YYYY)" in title attribute
         pub = _parse_italian_date(title_attr) or _parse_italian_date(title_text)
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
 
         results.append({
@@ -503,7 +503,7 @@ def scrape_consob(days: int) -> list:
 # Structure: div.node--article--teaser  date: div.field--name-field-news-date (DD.MM.YYYY)
 
 def scrape_efrag(days: int) -> list:
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get("https://www.efrag.org/en/news-and-calendar/news")
     if not soup:
@@ -522,7 +522,7 @@ def scrape_efrag(days: int) -> list:
         if pub is None:
             # Try from article text
             pub = _parse_dot_date(article.get_text(" ", strip=True)[:20])
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
 
         results.append({
@@ -542,7 +542,7 @@ def scrape_efrag(days: int) -> list:
 
 def _scrape_commission_page(url: str, days: int) -> list:
     """Commissione Europea ECL pages — article.ecl-content-item with <time>."""
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get(url)
     if not soup:
@@ -560,7 +560,7 @@ def _scrape_commission_page(url: str, days: int) -> list:
         time_el = item.find("time")
         date_text = time_el.get_text(" ", strip=True) if time_el else item.get_text(" ", strip=True)
         pub = _parse_italian_date(date_text) or _parse_english_date(date_text)
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
         seen.add(link)
         results.append({
@@ -589,7 +589,7 @@ _BDI_BASE = "https://www.bancaditalia.it"
 
 def _scrape_bdi_page(url: str, label: str, days: int) -> list:
     """BdI page scraper via Selenium. Finds anchors with Italian dates in title or text."""
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get_selenium(url, wait_css="main", wait_sec=20)
     if not soup:
@@ -614,7 +614,7 @@ def _scrape_bdi_page(url: str, label: str, days: int) -> list:
         pub = (_parse_italian_date(title) or
                _parse_italian_date(parent_text) or
                _parse_english_date(title))
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
         seen.add(link)
         results.append({
@@ -652,7 +652,7 @@ def scrape_bdi_comunicati_bce(days: int) -> list:
 # BIS renders publications table via JS. Selenium + wait for table rows.
 
 def scrape_bis_bcbs(days: int) -> list:
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     url = "https://www.bis.org/bcbs/publications.htm?m=3%7C14%7C566"
     soup = _get_selenium(url, wait_css="table.tbl, tr.bcbs_row, div.item", wait_sec=20)
@@ -674,7 +674,7 @@ def scrape_bis_bcbs(days: int) -> list:
         # Date: try each cell text
         text_all = row.get_text(" ", strip=True)
         pub = _parse_english_date(text_all)
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
         seen.add(link)
         results.append({
@@ -696,7 +696,7 @@ def scrape_icma(days: int) -> list:
     """ICMA: news items live in div.newsissues on the homepage.
     Each link text starts with 'DD Month YYYY' followed by the title.
     """
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get("https://www.icmagroup.org/")
     if not soup:
@@ -717,7 +717,7 @@ def scrape_icma(days: int) -> list:
             if pub is None:
                 # Try parent element text
                 pub = _parse_english_date((a.parent or a).get_text(" ", strip=True))
-            if pub is None or pub < cutoff:
+            if pub is None or not (start <= pub < end):
                 continue
             # Strip the date part from the title
             title = re.sub(r"^\d{1,2}\s+\w+\s+\d{4}\s*", "", raw).strip() or raw
@@ -742,7 +742,7 @@ def scrape_iosco(days: int) -> list:
     The /news/?subsection=news_releases path returns 403; try the library search page.
     Falls back gracefully to empty list on access denial.
     """
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     # Attempt static requests on the library/annual-reports page — news_releases blocks
     for url in [
@@ -766,7 +766,7 @@ def scrape_iosco(days: int) -> list:
                 continue
             text = row.get_text(" ", strip=True)
             pub = _parse_english_date(text)
-            if pub is None or pub < cutoff:
+            if pub is None or not (start <= pub < end):
                 continue
             seen.add(link)
             results.append({
@@ -790,7 +790,7 @@ def _scrape_iais_page(url: str, label: str, days: int) -> list:
     """IAIS scraper (iais.org — static HTML, article elements).
     Date is at the start of each article text: 'DD Mon YYYY Title...'
     """
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get(url)
     if not soup:
@@ -807,7 +807,7 @@ def _scrape_iais_page(url: str, label: str, days: int) -> list:
         text = item.get_text(" ", strip=True)
         # Date is at start of article text: "30 Apr 2026 Title text..."
         pub = _parse_english_date(text)
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
         # Title: strip the leading date ("30 Apr 2026 ")
         title = re.sub(r"^\d{1,2}\s+[A-Za-z]{3,}\s+\d{4}\s*", "", text).strip()
@@ -844,10 +844,10 @@ def scrape_eurlex(days: int) -> list:
     Date filter uses DTA/DTB params (dd%2Fmm%2Fyyyy).
     """
     from datetime import date as date_cls
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     today = date_cls.today()
-    start = (today - timedelta(days=days))
-    dta = start.strftime("%d%%2F%m%%2F%Y")
+    url_start = (today - timedelta(days=days))
+    dta = url_start.strftime("%d%%2F%m%%2F%Y")
     dtb = today.strftime("%d%%2F%m%%2F%Y")
     url = (
         f"https://eur-lex.europa.eu/search.html"
@@ -873,7 +873,7 @@ def scrape_eurlex(days: int) -> list:
             continue
         text = item.get_text(" ", strip=True)
         pub = _parse_slash_date(text) or _parse_english_date(text)
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
         seen.add(link)
         results.append({
@@ -897,7 +897,7 @@ def scrape_gazzetta_ufficiale(days: int) -> list:
     Homepage shows acts with parent text format: "DD/MM/YYYY TITLE (law ref)"
     Links with 'eli/id/' are direct act documents.
     """
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     soup = _get_selenium("https://www.gazzettaufficiale.it/home",
                          wait_css="body", wait_sec=20)
@@ -919,7 +919,7 @@ def scrape_gazzetta_ufficiale(days: int) -> list:
         pub = _parse_slash_date(parent_text)
         if pub is None:
             pub = _parse_italian_date(parent_text)
-        if pub is None or pub < cutoff:
+        if pub is None or not (start <= pub < end):
             continue
         # Title: sibling text around the link (grandparent usually has full text)
         gp = parent.parent if parent else None
@@ -950,7 +950,7 @@ def scrape_gazzetta_ufficiale(days: int) -> list:
 
 def scrape_bce_publications(days: int) -> list:
     """BCE publications by date — Selenium-rendered <dl>/<dt>/<dd> structure."""
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     url = "https://www.ecb.europa.eu/pub/pubbydate/html/index.en.html"
     soup = _get_selenium(url, wait_css="dl, main, .content", wait_sec=25)
@@ -964,8 +964,10 @@ def scrape_bce_publications(days: int) -> list:
             if el.name == "dt":
                 current_date = _parse_english_date(el.get_text(" ", strip=True))
             elif el.name == "dd" and current_date is not None:
-                if current_date < cutoff:
-                    break  # list is reverse-chronological; nothing newer follows
+                if current_date < start:
+                    break  # list is reverse-chronological; nothing in-window follows
+                if not (start <= current_date < end):
+                    continue  # future publication (>= end); skip and keep scanning
                 a = el.find("a", href=True)
                 if not a:
                     continue
@@ -1006,7 +1008,7 @@ _AMLA_BASE = "https://www.amla.europa.eu"
 def _scrape_amla_rss(rss_url: str, label: str, days: int) -> list:
     """Fetch AMLA RSS feed and return news items within the ISO week window."""
     import feedparser as _feedparser
-    cutoff = _cutoff(days)
+    start, end = _cutoff(days)
     results = []
     try:
         feed = _feedparser.parse(rss_url)
@@ -1015,7 +1017,7 @@ def _scrape_amla_rss(rss_url: str, label: str, days: int) -> list:
                 pub = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
             except (AttributeError, TypeError):
                 continue
-            if pub < cutoff:
+            if not (start <= pub < end):
                 continue
             link = getattr(entry, "link", "") or ""
             if link and not link.startswith("http"):

@@ -1,9 +1,8 @@
 # scraper/rss_scraper.py
 import feedparser
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import config
-from datetime import timedelta
-from scraper.date_utils import iso_week_cutoff, previous_iso_week_window  # noqa: F401
+from scraper.date_utils import iso_week_cutoff
 
 
 def scrape_rss(url: str, source_name: str, days: int = 7) -> list[dict]:
@@ -25,7 +24,8 @@ def scrape_rss(url: str, source_name: str, days: int = 7) -> list[dict]:
         print(f"[ERRORE] RSS {source_name} ({url}): {feed.bozo_exception}")
         return []
 
-    start, end = previous_iso_week_window()
+    start = iso_week_cutoff()          # mock-friendly; returns prev_monday 00:00 UTC
+    end   = start + timedelta(days=7)  # = this_monday 00:00 UTC
     results = []
     for entry in feed.entries:
         try:

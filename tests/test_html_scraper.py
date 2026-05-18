@@ -359,3 +359,39 @@ def test_scrape_amla_publications_includes_recent():
     assert len(results) == 1
     assert results[0]["source"] == "AMLA"
     assert "abc123" in results[0]["link"]
+
+
+# ---------------------------------------------------------------------------
+# Upper-bound exclusion — deterministic window test
+# ---------------------------------------------------------------------------
+# Patch previous_iso_week_window to fix the window at [2026-05-11, 2026-05-18).
+# An item published on 2026-05-18 (= end, this_monday) must be excluded.
+# An item published on 2026-05-17 (Sunday, last day of the window) must be included.
+
+FIXED_START = datetime(2026, 5, 11, 0, 0, 0, tzinfo=timezone.utc)
+FIXED_END   = datetime(2026, 5, 18, 0, 0, 0, tzinfo=timezone.utc)
+
+IE_BOUNDARY_HTML = """
+<html><body>
+  <div class="el-objectnews">
+    <h3 class="title"><a href="/news/9001/this-monday">Published on this Monday</a></h3>
+    <div class="date">18-5-2026</div>
+  </div>
+  <div class="el-objectnews">
+    <h3 class="title"><a href="/news/9000/last-sunday">Published on last Sunday</a></h3>
+    <div class="date">17-5-2026</div>
+  </div>
+</body></html>
+"""
+
+
+def test_upper_bound_excluded_deterministic():
+    """A publication dated == this_monday (end) must be excluded; dated == this_monday-1 must be included."""
+    with patch("scraper.html_scraper.previous_iso_week_window",
+               return_value=(FIXED_START, FIXED_END)), \
+         patch("scraper.html_scraper.requests.get",
+               return_value=_mock_response(IE_BOUNDARY_HTML)):
+        results = scrape_insurance_europe_news(days=7)
+    urls = [r["link"] for r in results]
+    assert "https://www.insuranceeurope.eu/news/9001/this-monday" not in urls   # >= end → excluded
+    assert "https://www.insuranceeurope.eu/news/9000/last-sunday" in urls       # < end → included
