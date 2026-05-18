@@ -20,7 +20,7 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 import config
-from scraper.date_utils import iso_week_cutoff
+from scraper.date_utils import iso_week_cutoff, previous_iso_week_window
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +47,13 @@ MESI_EN = {
 # ── Date parsers ──────────────────────────────────────────────────────────────
 
 def _cutoff(days: int = 7) -> datetime:
-    """Return Monday 00:00:00 UTC of the current ISO week.
+    """Return Monday 00:00:00 UTC of the previous ISO week (start of window).
 
     The `days` parameter is accepted for backward compatibility but is ignored.
+    All scrapers use this as: pub >= _cutoff() → item is in the previous week window.
     """
-    return iso_week_cutoff()
+    start, _end = previous_iso_week_window()
+    return start
 
 
 def _get(url: str) -> Optional[BeautifulSoup]:
