@@ -5,10 +5,11 @@ from typing import Optional
 
 
 def iso_week_cutoff(_now: Optional[datetime] = None) -> datetime:
-    """Return Monday 00:00:00 UTC of the current ISO week.
+    """Return Monday 00:00:00 UTC of the previous ISO week (Mon–Sun).
 
-    Any news item published on or after this datetime is considered
-    'this week' and should be included in the scraping window.
+    The newsletter is sent on Monday and covers the previous complete week.
+    Any news item published on or after this datetime (and before this Monday)
+    is considered 'last week' and should be included in the scraping window.
 
     Args:
         _now: Override the current UTC time (for testing). If None,
@@ -16,5 +17,6 @@ def iso_week_cutoff(_now: Optional[datetime] = None) -> datetime:
     """
     today = _now if _now is not None else datetime.now(timezone.utc)
     days_since_monday = today.weekday()          # 0=Mon … 6=Sun
-    monday = today - timedelta(days=days_since_monday)
-    return datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc)
+    this_monday = today - timedelta(days=days_since_monday)
+    prev_monday = this_monday - timedelta(days=7)
+    return datetime(prev_monday.year, prev_monday.month, prev_monday.day, tzinfo=timezone.utc)
