@@ -30,6 +30,7 @@ Esempio: `output/DB_EXCEL/monitoraggio_N2_Maggio2026.xlsx`
 | G | Descrizione | Testo | Sintesi generata da Claude API (4-6 righe, senza marker `**`) |
 | H | Includi in PPTX | Testo | SI / NO — precompilato da Claude API, modificabile dal responsabile |
 | I | Link | Testo | URL fonte originale |
+| J | Numero Edizione | Testo | Numero progressivo dell'edizione — valorizzato **manualmente** dal responsabile dopo la review; lo scraper non scrive mai su questa colonna |
 
 ## Comportamento dello script
 
@@ -45,7 +46,10 @@ Esempio: `output/DB_EXCEL/monitoraggio_N2_Maggio2026.xlsx`
 ### Fase --publish (`output/pptx_generator.py`)
 
 - Legge il foglio "Monitoraggio finance" dal file revisionato dal responsabile
-- Filtra solo le righe con colonna H = "SI" (case-insensitive)
+- Filtra solo le righe che soddisfano **entrambe** le condizioni:
+  - Colonna H = "SI" (case-insensitive) — approvata dal responsabile
+  - Colonna J = valore di `EDIZIONE_NUMERO` nel `.env` — appartiene all'edizione corrente
+- Se `EDIZIONE_NUMERO` non è valorizzato nel `.env`, lo script termina con errore esplicito
 - Raggruppa le notizie per categoria (ordine fisso: BANKING → INSURANCE → CROSS FINANCE → APPROFONDIMENTI)
 - Passa i dati al generatore PPTX
 

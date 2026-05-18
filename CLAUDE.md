@@ -52,7 +52,8 @@ alert_normativo/
 ├── scraper/
 │   ├── __init__.py
 │   ├── rss_scraper.py                # RSS via feedparser
-│   └── html_scraper.py               # HTML statico + Selenium (~37 funzioni scraper)
+│   ├── html_scraper.py               # HTML statico + Selenium (~37 funzioni scraper)
+│   └── date_utils.py                 # iso_week_cutoff() — finestra settimana ISO precedente
 ├── ai/
 │   ├── __init__.py
 │   └── synthesizer.py                # batch Claude API, retry, strip markdown
@@ -63,7 +64,10 @@ alert_normativo/
 │   └── uploader.py                   # stub futuro Google Drive / OneDrive
 └── tests/
     ├── __init__.py
-    └── test_rss_scraper.py
+    ├── test_rss_scraper.py
+    ├── test_html_scraper.py
+    ├── test_date_utils.py
+    └── test_excel_logger.py
 ```
 
 ## Architettura chiave
@@ -74,13 +78,20 @@ alert_normativo/
 - `FONTE_AMBITO` — dict che mappa `nome_fonte → "BANKING"|"INSURANCE"|"CROSS FINANCE"`
 - `CATEGORY_ORDER = ["BANKING", "INSURANCE", "CROSS FINANCE", "APPROFONDIMENTI"]`
 
+### `scraper/date_utils.py`
+- `iso_week_cutoff(_now=None)` → `datetime` — restituisce lunedì 00:00:00 UTC della **settimana ISO precedente**
+- La newsletter viene inviata il lunedì e copre la settimana precedente completa (lunedì–domenica)
+- Parametro `_now` per test deterministici senza mock
+
 ### `scraper/rss_scraper.py`
 - `scrape_rss(url, source_name, days)` → `list[dict]`
+- La finestra di scraping è la settimana ISO precedente: usa `iso_week_cutoff()` da `date_utils`; il parametro `days` è ignorato
 - Ogni notizia include il campo `ambito_fonte` (da `config.FONTE_AMBITO`) usato da Claude API per la categorizzazione
 
 ### `scraper/html_scraper.py`
 - ~37 funzioni scraper, una per ogni sezione di ogni fonte
 - Helper interni: `_get()` (statico), `_get_selenium()` (JS), `_parse_*_date()` per vari formati data
+- La finestra di scraping è la settimana ISO precedente: `_cutoff()` delega a `iso_week_cutoff()`; il parametro `days` passato alle funzioni scraper è ignorato
 - Fonti Selenium: ANIA, Banca d'Italia, BIS/BCBS, Gazzetta Ufficiale, EUR-Lex (best-effort)
 - Fonti best-effort (possono restituire 0): EUR-Lex (202/throttled), IOSCO (403)
 
@@ -93,10 +104,12 @@ alert_normativo/
 ### `output/excel_logger.py`
 - `create_excel(template_path, output_path)` — copia template
 - `append_news(output_path, news_items)` — aggiunge righe, deduplicazione per URL
+- `read_approved_news(excel_path, edizione_numero)` — legge il foglio revisionato e restituisce un dict `{categoria: [notizie]}` filtrando colonna H = "SI" **e** colonna J = `edizione_numero`
 - Output: `output/DB_EXCEL/monitoraggio_N{n}_{mese}{anno}.xlsx`
 
 ### `output/pptx_generator.py`
 - Template `assets/_CLEAN.pptx` con 6 slide identiche pre-esistenti
+- Legge i dati approvati tramite `excel_logger.read_approved_news()` (filtro: colonna H = "SI" **e** colonna J = `EDIZIONE_NUMERO`)
 - Paginazione: scorre le slide in ordine, quando `current_y > BOTTOM_CONTENT_Y` passa alla successiva
 - Non crea mai nuove slide — se le 6 si esauriscono lancia `RuntimeError`
 - Disegna: icona + intestazione sezione (bold), descrizione (10pt regular), data (centrato), link cliccabile (blu navy)
@@ -116,9 +129,16 @@ alert_normativo/
 ANTHROPIC_API_KEY=
 
 # Parametri edizione
-EDIZIONE_NUMERO=1
+# EDIZIONE_NUMERO: obbligatorio per --publish; nessun default.
+#   Deve corrispondere al valore inserito manualmente in colonna J del foglio Excel.
+#   Se non valorizzato, --publish termina con errore esplicito.
+EDIZIONE_NUMERO=
 EDIZIONE_MESE=Maggio
 EDIZIONE_ANNO=2026
+
+# FINESTRA_GIORNI non è più usata per la finestra di scraping
+# (lo scraping usa sempre la settimana ISO precedente: da lunedì a domenica).
+# Mantenuta per compatibilità futura.
 FINESTRA_GIORNI=7
 
 # Upload futuro (default: none)
