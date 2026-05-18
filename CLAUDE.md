@@ -53,7 +53,7 @@ alert_normativo/
 │   ├── __init__.py
 │   ├── rss_scraper.py                # RSS via feedparser
 │   ├── html_scraper.py               # HTML statico + Selenium (~37 funzioni scraper)
-│   └── date_utils.py                 # iso_week_cutoff() — finestra settimana ISO precedente
+│   └── date_utils.py                 # iso_week_cutoff(), previous_iso_week_window() — finestra settimana ISO precedente
 ├── ai/
 │   ├── __init__.py
 │   └── synthesizer.py                # batch Claude API, retry, strip markdown
@@ -79,19 +79,18 @@ alert_normativo/
 - `CATEGORY_ORDER = ["BANKING", "INSURANCE", "CROSS FINANCE", "APPROFONDIMENTI"]`
 
 ### `scraper/date_utils.py`
-- `iso_week_cutoff(_now=None)` → `datetime` — restituisce lunedì 00:00:00 UTC della **settimana ISO precedente**
-- La newsletter viene inviata il lunedì e copre la settimana precedente completa (lunedì–domenica)
-- Parametro `_now` per test deterministici senza mock
+- `iso_week_cutoff(_now=None)` → `datetime` — restituisce lunedì 00:00:00 UTC della settimana ISO precedente (usato come target mock nei test RSS)
+- `previous_iso_week_window(_now=None)` → `tuple[datetime, datetime]` — restituisce `(prev_monday, this_monday)` come finestra half-open `[start, end)` UTC
 
 ### `scraper/rss_scraper.py`
 - `scrape_rss(url, source_name, days)` → `list[dict]`
-- La finestra di scraping è la settimana ISO precedente: usa `iso_week_cutoff()` da `date_utils`; il parametro `days` è ignorato
+- La finestra di scraping è la settimana ISO precedente: usa `iso_week_cutoff()` per lo start e calcola `end = start + timedelta(days=7)`; il parametro `days` è ignorato
 - Ogni notizia include il campo `ambito_fonte` (da `config.FONTE_AMBITO`) usato da Claude API per la categorizzazione
 
 ### `scraper/html_scraper.py`
 - ~37 funzioni scraper, una per ogni sezione di ogni fonte
 - Helper interni: `_get()` (statico), `_get_selenium()` (JS), `_parse_*_date()` per vari formati data
-- La finestra di scraping è la settimana ISO precedente: `_cutoff()` delega a `iso_week_cutoff()`; il parametro `days` passato alle funzioni scraper è ignorato
+- La finestra di scraping è la settimana ISO precedente: `_cutoff()` delega a `previous_iso_week_window()` e restituisce `(start, end)`; il parametro `days` passato alle funzioni scraper è ignorato
 - Fonti Selenium: ANIA, Banca d'Italia, BIS/BCBS, Gazzetta Ufficiale, EUR-Lex (best-effort)
 - Fonti best-effort (possono restituire 0): EUR-Lex (202/throttled), IOSCO (403)
 
@@ -102,7 +101,8 @@ alert_normativo/
 - I marker grassetto `**...**` vengono rimossi prima della scrittura su Excel
 
 ### `output/excel_logger.py`
-- `create_excel(template_path, output_path)` — copia template
+- `ensure_excel_exists(template_path, output_path)` → `bool` — crea il file da template se non esiste, restituisce `True` se creato, `False` se già esistente
+- `count_existing_rows(output_path)` → `int` — conta le righe dati con ID valorizzato a partire da `DATA_START_ROW`
 - `append_news(output_path, news_items)` — aggiunge righe, deduplicazione per URL
 - `read_approved_news(excel_path, edizione_numero)` — legge il foglio revisionato e restituisce un dict `{categoria: [notizie]}` filtrando colonna H = "SI" **e** colonna J = `edizione_numero`
 - Output: `output/DB_EXCEL/monitoraggio_N{n}_{mese}{anno}.xlsx`
