@@ -27,6 +27,8 @@ FONTE_AMBITO = {
     # Banking
     "EBA":                  "BANKING",
     "BCE":                  "BANKING",
+    "BCE Publications":     "BANKING",
+    "AMLA":                 "BANKING",
     "Banca d'Italia":       "BANKING",
     "BIS":                  "BANKING",
     "BCBS":                 "BANKING",
@@ -114,6 +116,11 @@ HTML_SOURCES = [
     ("scrape_bdi_comunicati_bce",      "Banca d'Italia"),
     # Banking — BIS/BCBS
     ("scrape_bis_bcbs",                "BIS"),
+    # Banking — BCE Publications (tecnici, working papers)
+    ("scrape_bce_publications",        "BCE Publications"),
+    # Banking — AMLA
+    ("scrape_amla_news",               "AMLA"),
+    ("scrape_amla_publications",       "AMLA"),
     # Cross Finance
     ("scrape_consob",                  "CONSOB"),
     ("scrape_gazzetta_ufficiale",      "Gazzetta Ufficiale"),

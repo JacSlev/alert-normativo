@@ -32,6 +32,9 @@ from scraper.html_scraper import (
     scrape_commissione_europea, scrape_commissione_ue_news, scrape_efrag,
     # IAIS
     scrape_iais_news, scrape_iais_consultations, scrape_iais_events,
+    # BCE Publications + AMLA
+    scrape_bce_publications,
+    scrape_amla_news, scrape_amla_publications,
 )
 from ai.synthesizer import synthesize_all
 from output.excel_logger import create_excel, append_news, get_output_path as excel_path
@@ -76,6 +79,9 @@ _HTML_SCRAPERS = {
     "scrape_iais_news":                     scrape_iais_news,
     "scrape_iais_consultations":            scrape_iais_consultations,
     "scrape_iais_events":                   scrape_iais_events,
+    "scrape_bce_publications":              scrape_bce_publications,
+    "scrape_amla_news":                     scrape_amla_news,
+    "scrape_amla_publications":             scrape_amla_publications,
 }
 
 
