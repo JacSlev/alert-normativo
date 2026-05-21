@@ -30,6 +30,7 @@ FONTE_AMBITO = {
     "BCE Publications":     "BANKING",
     "AMLA":                 "BANKING",
     "Banca d'Italia":       "BANKING",
+    "BdI Ricerche":         "BANKING",
     "BIS":                  "BANKING",
     "BCBS":                 "BANKING",
     "ABI":                  "BANKING",
@@ -113,6 +114,7 @@ HTML_SOURCES = [
     ("scrape_bdi_archivio_norme",      "Banca d'Italia"),
     ("scrape_bdi_consultazioni",       "Banca d'Italia"),
     ("scrape_bdi_approfondimenti",     "Banca d'Italia"),
+    ("scrape_bdi_ricerche",            "BdI Ricerche"),
     ("scrape_bdi_comunicati_bce",      "Banca d'Italia"),
     # Banking — BIS/BCBS
     ("scrape_bis_bcbs",                "BIS"),

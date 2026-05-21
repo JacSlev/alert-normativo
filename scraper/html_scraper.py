@@ -583,12 +583,18 @@ def scrape_commissione_ue_news(days: int) -> list:
 
 # ── Banca d'Italia ────────────────────────────────────────────────────────────
 # BdI uses JavaScript-rendered content; Selenium required.
-# Waits for div.bdi-comunicati or ul.bdi-list, then parses links + Italian dates.
+# Two DOM patterns in use:
+#   A) Generic:  waits for "main", walks all <a> with Italian dates in surrounding text.
+#      Used by: homepage, archivio-norme, consultazioni, comunicati-bce.
+#   B) FormResults: waits for "#bdi_form_results li", reads a.bdi-result-title +
+#      div.bdi-result-date ("Data Pubblicazione:DD Mese YYYY").
+#      Used by: approfondimenti, infokit (ricerche).
 
 _BDI_BASE = "https://www.bancaditalia.it"
 
+
 def _scrape_bdi_page(url: str, label: str, days: int) -> list:
-    """BdI page scraper via Selenium. Finds anchors with Italian dates in title or text."""
+    """BdI page scraper via Selenium (pattern A). Finds anchors with Italian dates in title or text."""
     start, end = _cutoff(days)
     results = []
     soup = _get_selenium(url, wait_css="main", wait_sec=20)
@@ -628,6 +634,52 @@ def _scrape_bdi_page(url: str, label: str, days: int) -> list:
     logger.info("BdI %s: %d notizie in %d giorni", label, len(results), days)
     return results
 
+
+def _scrape_bdi_form_results_page(url: str, label: str, source_name: str, days: int) -> list:
+    """BdI page scraper via Selenium (pattern B).
+
+    Waits for '#bdi_form_results li', then reads:
+      - a.bdi-result-title  → title + relative href (prepend _BDI_BASE)
+      - div.bdi-result-date → 'Data Pubblicazione:DD Mese YYYY' → _parse_italian_date
+    """
+    start, end = _cutoff(days)
+    results = []
+    soup = _get_selenium(url, wait_css="#bdi_form_results li", wait_sec=30)
+    if not soup:
+        logger.warning("[WARNING] BdI %s: Selenium returned no content", label)
+        return []
+    seen: set = set()
+    for li in soup.select("#bdi_form_results li"):
+        a = li.select_one("a.bdi-result-title") or li.find("a", href=True)
+        if not a:
+            continue
+        title = a.get_text(strip=True)
+        if not title:
+            continue
+        href = a.get("href", "")
+        link = href if href.startswith("http") else _BDI_BASE + href
+        if link in seen:
+            continue
+        date_el = li.select_one("div.bdi-result-date")
+        date_text = date_el.get_text(strip=True) if date_el else ""
+        # Strip "Data Pubblicazione:" prefix before parsing
+        date_text = date_text.replace("Data Pubblicazione:", "").strip()
+        pub = _parse_italian_date(date_text)
+        if pub is None or not (start <= pub < end):
+            continue
+        seen.add(link)
+        results.append({
+            "title": title,
+            "link": link,
+            "summary": "",
+            "date": pub.strftime("%d/%m/%Y"),
+            "source": source_name,
+            "ambito_fonte": config.FONTE_AMBITO.get(source_name, "BANKING"),
+        })
+    logger.info("BdI %s: %d notizie in %d giorni", label, len(results), days)
+    return results
+
+
 def scrape_bdi_homepage(days: int) -> list:
     return _scrape_bdi_page(_BDI_BASE + "/", "homepage", days)
 
@@ -640,8 +692,14 @@ def scrape_bdi_consultazioni(days: int) -> list:
         _BDI_BASE + "/compiti/vigilanza/normativa/consultazioni/", "consultazioni", days)
 
 def scrape_bdi_approfondimenti(days: int) -> list:
-    return _scrape_bdi_page(
-        _BDI_BASE + "/media/approfondimenti/", "approfondimenti", days)
+    """BdI Approfondimenti — regulatory deep-dives (DORA, MiCAR, ecc.)."""
+    return _scrape_bdi_form_results_page(
+        _BDI_BASE + "/media/approfondimenti/", "approfondimenti", "Banca d'Italia", days)
+
+def scrape_bdi_ricerche(days: int) -> list:
+    """BdI Infokit — institutional reports and research publications."""
+    return _scrape_bdi_form_results_page(
+        _BDI_BASE + "/media/infokit/", "infokit/ricerche", "BdI Ricerche", days)
 
 def scrape_bdi_comunicati_bce(days: int) -> list:
     return _scrape_bdi_page(

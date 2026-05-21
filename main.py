@@ -23,7 +23,7 @@ from scraper.html_scraper import (
     scrape_eiopa_speeches, scrape_eiopa_interviews,
     # Banca d'Italia
     scrape_bdi_homepage, scrape_bdi_archivio_norme, scrape_bdi_consultazioni,
-    scrape_bdi_approfondimenti, scrape_bdi_comunicati_bce,
+    scrape_bdi_approfondimenti, scrape_bdi_ricerche, scrape_bdi_comunicati_bce,
     # BIS/BCBS
     scrape_bis_bcbs,
     # Cross Finance
@@ -66,6 +66,7 @@ _HTML_SCRAPERS = {
     "scrape_bdi_archivio_norme":            scrape_bdi_archivio_norme,
     "scrape_bdi_consultazioni":             scrape_bdi_consultazioni,
     "scrape_bdi_approfondimenti":           scrape_bdi_approfondimenti,
+    "scrape_bdi_ricerche":                  scrape_bdi_ricerche,
     "scrape_bdi_comunicati_bce":            scrape_bdi_comunicati_bce,
     "scrape_bis_bcbs":                      scrape_bis_bcbs,
     "scrape_consob":                        scrape_consob,

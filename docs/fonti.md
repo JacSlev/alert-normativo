@@ -18,7 +18,8 @@ Legenda accesso: **RSS** = feedparser, **HTML** = requests + BeautifulSoup4, **S
 | Banca d'Italia — Homepage | https://www.bancaditalia.it/ | Selenium |
 | Banca d'Italia — Archivio norme | https://www.bancaditalia.it/compiti/vigilanza/normativa/archivio-norme/ | Selenium |
 | Banca d'Italia — Consultazioni | https://www.bancaditalia.it/compiti/vigilanza/normativa/consultazioni/ | Selenium |
-| Banca d'Italia — Approfondimenti | https://www.bancaditalia.it/media/approfondimenti/ | Selenium |
+| Banca d'Italia — Approfondimenti | https://www.bancaditalia.it/media/approfondimenti/ | Selenium (`#bdi_form_results li`) |
+| Banca d'Italia — Ricerche/Infokit | https://www.bancaditalia.it/media/infokit/ | Selenium (`#bdi_form_results li`) |
 | Banca d'Italia — Comunicati BCE | https://www.bancaditalia.it/media/bce-comunicati/ | Selenium |
 | BIS/BCBS | https://www.bis.org/bcbs/publications.htm | Selenium |
 | BCE — Pubblicazioni tecniche | https://www.ecb.europa.eu/pub/pubbydate/html/index.en.html | Selenium |
