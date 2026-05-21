@@ -953,7 +953,7 @@ def scrape_bce_publications(days: int) -> list:
     start, end = _cutoff(days)
     results = []
     url = "https://www.ecb.europa.eu/pub/pubbydate/html/index.en.html"
-    soup = _get_selenium(url, wait_css="dl, main, .content", wait_sec=25)
+    soup = _get_selenium(url, wait_css="dl dt", wait_sec=30)
     if not soup:
         logger.warning("[WARNING] BCE Publications: Selenium returned no content")
         return []
