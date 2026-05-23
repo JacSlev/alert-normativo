@@ -90,7 +90,9 @@ alert_normativo/
 ### `scraper/html_scraper.py`
 - ~37 funzioni scraper, una per ogni sezione di ogni fonte
 - Helper interni: `_get()` (statico), `_get_selenium()` (JS), `_parse_*_date()` per vari formati data
-- La finestra di scraping è la settimana ISO precedente: `_cutoff()` delega a `previous_iso_week_window()` e restituisce `(start, end)`; il parametro `days` passato alle funzioni scraper è ignorato
+- `_cutoff(days) → tuple[datetime, datetime]` — delega a `previous_iso_week_window()` e restituisce `(start, end)`; il parametro `days` è ignorato
+- `scrape_eurlex`: i parametri URL `DTA`/`DTB` usano `start.date()` e `(end - 1 day).date()` dalla finestra ISO — coerenti col filtro sui risultati parsati
+- `_scrape_bdi_form_results_page(url, label, source_name, days)` — helper Selenium condiviso da `scrape_bdi_approfondimenti` e `scrape_bdi_ricerche`; attende `#bdi_form_results li` e legge `a.bdi-result-title` + `div.bdi-result-date`
 - Fonti Selenium: ANIA, Banca d'Italia, BIS/BCBS, Gazzetta Ufficiale, EUR-Lex (best-effort)
 - Fonti best-effort (possono restituire 0): EUR-Lex (202/throttled), IOSCO (403)
 
@@ -121,6 +123,12 @@ alert_normativo/
 - Gestire sempre gli errori per singola fonte: se una è irraggiungibile, continuare con le altre
 - I font delle descrizioni PPTX devono essere `run.font.bold = False` esplicitamente (altrimenti ereditano dal master)
 - `FONTE_AMBITO` in `config.py` è la fonte di verità per la categorizzazione per ambito
+
+### Convenzioni test
+
+- Nei test non usare mai `datetime.now() - timedelta(days=N)` per costruire date di pubblicazione — i test diventano dipendenti dalla data corrente e falliscono a settimane diverse
+- Usare sempre datetime espliciti (es. `datetime(2026, 5, 13, tzinfo=timezone.utc)`) e mockare `scraper.html_scraper.previous_iso_week_window` con `return_value=(FIXED_START, FIXED_END)`
+- Le costanti `FIXED_START` / `FIXED_END` nel file di test definiscono la finestra pinned; le date "in-window" e "out-of-window" vanno scelte rispetto a quella finestra
 
 ## Variabili d'ambiente
 
