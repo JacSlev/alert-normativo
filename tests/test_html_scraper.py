@@ -12,6 +12,7 @@ from scraper.html_scraper import (
     scrape_bce_publications,
     scrape_amla_news,
     scrape_amla_publications,
+    scrape_bdi_ricerche,
 )
 
 # ---------------------------------------------------------------------------
@@ -303,25 +304,26 @@ def _amla_feed(entries: list) -> MagicMock:
     return mock_feed
 
 
-def _amla_entry(title: str, link: str, days_ago: int) -> MagicMock:
-    from datetime import timedelta
-    pub = datetime.now(timezone.utc) - timedelta(days=days_ago)
+def _amla_entry_fixed(title: str, link: str, pub_dt: datetime) -> MagicMock:
     entry = MagicMock()
     entry.title = title
     entry.link = link
     entry.summary = ""
-    entry.published_parsed = pub.timetuple()
+    entry.published_parsed = pub_dt.timetuple()
     return entry
 
 
-# Today = 2026-05-18. iso_week_cutoff() = 2026-05-11 (previous Monday).
-# 5 days ago = 2026-05-13 (Wed) → within window → included
-# 15 days ago = 2026-05-03 → before cutoff → excluded
+# Pinned window: [2026-05-11, 2026-05-18) — reuses FIXED_START / FIXED_END defined below.
+# In-window: Wed 2026-05-13 — out-of-window: Sun 2026-05-03 (week before).
+AMLA_PUB_IN  = datetime(2026, 5, 13, 10, 0, 0, tzinfo=timezone.utc)
+AMLA_PUB_OUT = datetime(2026, 5,  3, 10, 0, 0, tzinfo=timezone.utc)
 
 
 def test_scrape_amla_news_includes_recent():
-    entry_in = _amla_entry("AMLA publishes template", "/amla-template_en", days_ago=5)
-    with patch("feedparser.parse", return_value=_amla_feed([entry_in])):
+    entry_in = _amla_entry_fixed("AMLA publishes template", "/amla-template_en", AMLA_PUB_IN)
+    with patch("scraper.html_scraper.previous_iso_week_window",
+               return_value=(FIXED_START, FIXED_END)), \
+         patch("feedparser.parse", return_value=_amla_feed([entry_in])):
         results = scrape_amla_news(days=7)
     assert len(results) == 1
     assert results[0]["source"] == "AMLA"
@@ -329,15 +331,19 @@ def test_scrape_amla_news_includes_recent():
 
 
 def test_scrape_amla_news_excludes_old():
-    entry_old = _amla_entry("Old news", "/old-news_en", days_ago=15)
-    with patch("feedparser.parse", return_value=_amla_feed([entry_old])):
+    entry_old = _amla_entry_fixed("Old news", "/old-news_en", AMLA_PUB_OUT)
+    with patch("scraper.html_scraper.previous_iso_week_window",
+               return_value=(FIXED_START, FIXED_END)), \
+         patch("feedparser.parse", return_value=_amla_feed([entry_old])):
         results = scrape_amla_news(days=7)
     assert results == []
 
 
 def test_scrape_amla_news_absolute_link_unchanged():
-    entry = _amla_entry("Doc", "https://www.amla.europa.eu/doc_en", days_ago=5)
-    with patch("feedparser.parse", return_value=_amla_feed([entry])):
+    entry = _amla_entry_fixed("Doc", "https://www.amla.europa.eu/doc_en", AMLA_PUB_IN)
+    with patch("scraper.html_scraper.previous_iso_week_window",
+               return_value=(FIXED_START, FIXED_END)), \
+         patch("feedparser.parse", return_value=_amla_feed([entry])):
         results = scrape_amla_news(days=7)
     assert results[0]["link"] == "https://www.amla.europa.eu/doc_en"
 
@@ -349,12 +355,14 @@ def test_scrape_amla_news_returns_empty_on_error():
 
 
 def test_scrape_amla_publications_includes_recent():
-    entry_in = _amla_entry(
+    entry_in = _amla_entry_fixed(
         "RTS draft under Art. 31",
         "https://www.amla.europa.eu/document/download/abc123_en",
-        days_ago=6,
+        AMLA_PUB_IN,
     )
-    with patch("feedparser.parse", return_value=_amla_feed([entry_in])):
+    with patch("scraper.html_scraper.previous_iso_week_window",
+               return_value=(FIXED_START, FIXED_END)), \
+         patch("feedparser.parse", return_value=_amla_feed([entry_in])):
         results = scrape_amla_publications(days=7)
     assert len(results) == 1
     assert results[0]["source"] == "AMLA"
@@ -395,3 +403,82 @@ def test_upper_bound_excluded_deterministic():
     urls = [r["link"] for r in results]
     assert "https://www.insuranceeurope.eu/news/9001/this-monday" not in urls   # >= end → excluded
     assert "https://www.insuranceeurope.eu/news/9000/last-sunday" in urls       # < end → included
+
+
+# ---------------------------------------------------------------------------
+# BdI Ricerche (_scrape_bdi_form_results_page)
+# ---------------------------------------------------------------------------
+
+BDI_RICERCHE_HTML_IN = """
+<html><body>
+<ul id="bdi_form_results">
+  <li>
+    <a class="bdi-result-title" href="/media/infokit/rapporto-stabilita-2026">Rapporto sulla stabilità finanziaria</a>
+    <div class="bdi-result-date">Data Pubblicazione:13 Maggio 2026</div>
+  </li>
+</ul>
+</body></html>
+"""
+
+BDI_RICERCHE_HTML_OLD = """
+<html><body>
+<ul id="bdi_form_results">
+  <li>
+    <a class="bdi-result-title" href="/media/infokit/rapporto-vecchio">Rapporto vecchio</a>
+    <div class="bdi-result-date">Data Pubblicazione:03 Maggio 2026</div>
+  </li>
+</ul>
+</body></html>
+"""
+
+BDI_RICERCHE_HTML_MIXED = """
+<html><body>
+<ul id="bdi_form_results">
+  <li>
+    <a class="bdi-result-title" href="/media/infokit/rapporto-recente">Rapporto recente</a>
+    <div class="bdi-result-date">Data Pubblicazione:13 Maggio 2026</div>
+  </li>
+  <li>
+    <a class="bdi-result-title" href="/media/infokit/rapporto-vecchio">Rapporto precedente</a>
+    <div class="bdi-result-date">Data Pubblicazione:03 Maggio 2026</div>
+  </li>
+</ul>
+</body></html>
+"""
+
+
+def test_scrape_bdi_ricerche_includes_in_window():
+    with patch("scraper.html_scraper.previous_iso_week_window",
+               return_value=(FIXED_START, FIXED_END)), \
+         patch("scraper.html_scraper._get_selenium",
+               return_value=BeautifulSoup(BDI_RICERCHE_HTML_IN, "html.parser")):
+        results = scrape_bdi_ricerche(days=7)
+    assert len(results) == 1
+    assert results[0]["source"] == "BdI Ricerche"
+    assert results[0]["date"] == "13/05/2026"
+    assert results[0]["link"] == "https://www.bancaditalia.it/media/infokit/rapporto-stabilita-2026"
+
+
+def test_scrape_bdi_ricerche_excludes_old():
+    with patch("scraper.html_scraper.previous_iso_week_window",
+               return_value=(FIXED_START, FIXED_END)), \
+         patch("scraper.html_scraper._get_selenium",
+               return_value=BeautifulSoup(BDI_RICERCHE_HTML_OLD, "html.parser")):
+        results = scrape_bdi_ricerche(days=7)
+    assert results == []
+
+
+def test_scrape_bdi_ricerche_filters_mixed():
+    with patch("scraper.html_scraper.previous_iso_week_window",
+               return_value=(FIXED_START, FIXED_END)), \
+         patch("scraper.html_scraper._get_selenium",
+               return_value=BeautifulSoup(BDI_RICERCHE_HTML_MIXED, "html.parser")):
+        results = scrape_bdi_ricerche(days=7)
+    assert len(results) == 1
+    assert "rapporto-recente" in results[0]["link"]
+
+
+def test_scrape_bdi_ricerche_returns_empty_on_selenium_failure():
+    with patch("scraper.html_scraper._get_selenium", return_value=None):
+        results = scrape_bdi_ricerche(days=7)
+    assert results == []

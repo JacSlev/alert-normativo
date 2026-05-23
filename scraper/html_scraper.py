@@ -46,7 +46,7 @@ MESI_EN = {
 
 # ── Date parsers ──────────────────────────────────────────────────────────────
 
-def _cutoff(days: int = 7) -> tuple:
+def _cutoff(days: int = 7) -> tuple[datetime, datetime]:
     """Return (start, end) of the previous ISO week as UTC datetimes.
 
     start = prev_monday 00:00 UTC (inclusive)
@@ -901,12 +901,9 @@ def scrape_eurlex(days: int) -> list:
     The results page is JS-rendered (div.SearchResult injected by JS).
     Date filter uses DTA/DTB params (dd%2Fmm%2Fyyyy).
     """
-    from datetime import date as date_cls
     start, end = _cutoff(days)
-    today = date_cls.today()
-    url_start = (today - timedelta(days=days))
-    dta = url_start.strftime("%d%%2F%m%%2F%Y")
-    dtb = today.strftime("%d%%2F%m%%2F%Y")
+    dta = start.strftime("%d%%2F%m%%2F%Y")
+    dtb = (end - timedelta(days=1)).strftime("%d%%2F%m%%2F%Y")
     url = (
         f"https://eur-lex.europa.eu/search.html"
         f"?scope=EURLEX&type=quick&lang=it&OBSOLETE=false"
