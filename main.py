@@ -5,6 +5,7 @@ from collections import Counter
 import anthropic
 
 import config
+from scraper.date_utils import parse_window, set_window
 from scraper.rss_scraper import scrape_rss
 from scraper.html_scraper import (
     # IVASS (7 section pages)
@@ -86,18 +87,20 @@ _HTML_SCRAPERS = {
 }
 
 
-def scrape():
-    print("Fase 1 — Scraping in corso...")
+def scrape(dal: str, al: str) -> None:
+    start, end = parse_window(dal, al)
+    set_window(start, end)
+    print(f"Fase 1 — Scraping in corso (finestra: {dal} → {al})...")
 
     all_news = []
     for url, name in config.RSS_SOURCES:
-        items = scrape_rss(url, source_name=name, days=config.FINESTRA_GIORNI)
+        items = scrape_rss(url, source_name=name)
         print(f"  [RSS] [{name}] {len(items)} notizie trovate")
         all_news.extend(items)
 
     for fn_name, name in config.HTML_SOURCES:
         fn = _HTML_SCRAPERS[fn_name]
-        items = fn(days=config.FINESTRA_GIORNI)
+        items = fn(days=7)
         print(f"  [HTML] [{name}] {len(items)} notizie trovate")
         all_news.extend(items)
 
@@ -156,10 +159,18 @@ def main():
     parser = argparse.ArgumentParser(description="Alert Normativo — SCS Consulting")
     parser.add_argument("--scrape", action="store_true", help="Fase 1: scraping e generazione Excel")
     parser.add_argument("--publish", action="store_true", help="Fase 2: generazione PPTX")
+    parser.add_argument("--dal", metavar="DD/MM/YYYY", help="Inizio finestra scraping (incluso)")
+    parser.add_argument("--al",  metavar="DD/MM/YYYY", help="Fine finestra scraping (incluso)")
     args = parser.parse_args()
 
     if args.scrape:
-        scrape()
+        if not args.dal or not args.al:
+            print(
+                "[ERRORE] I flag --dal e --al sono obbligatori per lo scraping.\n"
+                "Esempio: python main.py --scrape --dal 01/05/2026 --al 15/05/2026"
+            )
+            sys.exit(1)
+        scrape(args.dal, args.al)
     elif args.publish:
         publish()
     else:

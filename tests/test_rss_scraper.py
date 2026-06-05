@@ -4,8 +4,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from scraper.rss_scraper import scrape_rss
 
-# Fixed ISO week: Mon 2026-05-11 00:00 UTC → Sun 2026-05-17 23:59 UTC
+# Fixed window: Mon 2026-05-11 00:00 UTC → Mon 2026-05-18 00:00 UTC (exclusive)
 MOCK_MONDAY = datetime(2026, 5, 11, 0, 0, 0, tzinfo=timezone.utc)
+MOCK_WINDOW = (MOCK_MONDAY, MOCK_MONDAY + timedelta(days=7))
 
 
 def _make_entry(pub_dt: datetime) -> MagicMock:
@@ -26,18 +27,18 @@ def _mock_feed(entries):
 
 @pytest.fixture
 def recent_entry():
-    return _make_entry(MOCK_MONDAY + timedelta(days=2))   # Wednesday this ISO week
+    return _make_entry(MOCK_MONDAY + timedelta(days=2))   # Wednesday inside window
 
 
 @pytest.fixture
 def old_entry():
-    return _make_entry(MOCK_MONDAY - timedelta(days=1))   # Sunday last ISO week
+    return _make_entry(MOCK_MONDAY - timedelta(days=1))   # Sunday before window
 
 
 def test_scrape_rss_returns_list_of_dicts(recent_entry):
-    with patch("scraper.rss_scraper.iso_week_cutoff", return_value=MOCK_MONDAY), \
+    with patch("scraper.rss_scraper.get_window", return_value=MOCK_WINDOW), \
          patch("scraper.rss_scraper.feedparser.parse", return_value=_mock_feed([recent_entry])):
-        results = scrape_rss("https://www.eba.europa.eu/rss", source_name="EBA", days=7)
+        results = scrape_rss("https://www.eba.europa.eu/rss", source_name="EBA")
     assert isinstance(results, list)
     assert len(results) == 1
     assert results[0]["source"] == "EBA"
@@ -46,20 +47,20 @@ def test_scrape_rss_returns_list_of_dicts(recent_entry):
 
 
 def test_scrape_rss_filters_by_iso_week(recent_entry, old_entry):
-    with patch("scraper.rss_scraper.iso_week_cutoff", return_value=MOCK_MONDAY), \
+    with patch("scraper.rss_scraper.get_window", return_value=MOCK_WINDOW), \
          patch("scraper.rss_scraper.feedparser.parse",
                return_value=_mock_feed([recent_entry, old_entry])):
-        results = scrape_rss("https://www.eba.europa.eu/rss", source_name="EBA", days=7)
+        results = scrape_rss("https://www.eba.europa.eu/rss", source_name="EBA")
     assert len(results) == 1
     assert results[0]["title"] == "EBA publishes guidelines on FRTB"
 
 
 def test_scrape_rss_includes_monday_itself():
-    monday_entry = _make_entry(MOCK_MONDAY)       # exactly at cutoff boundary
-    with patch("scraper.rss_scraper.iso_week_cutoff", return_value=MOCK_MONDAY), \
+    monday_entry = _make_entry(MOCK_MONDAY)       # exactly at start boundary
+    with patch("scraper.rss_scraper.get_window", return_value=MOCK_WINDOW), \
          patch("scraper.rss_scraper.feedparser.parse",
                return_value=_mock_feed([monday_entry])):
-        results = scrape_rss("https://www.eba.europa.eu/rss", source_name="EBA", days=7)
+        results = scrape_rss("https://www.eba.europa.eu/rss", source_name="EBA")
     assert len(results) == 1
 
 
@@ -68,9 +69,9 @@ def test_scrape_rss_returns_empty_on_network_error():
     mock_feed.bozo = True
     mock_feed.bozo_exception = Exception("Connection refused")
     mock_feed.entries = []
-    with patch("scraper.rss_scraper.iso_week_cutoff", return_value=MOCK_MONDAY), \
+    with patch("scraper.rss_scraper.get_window", return_value=MOCK_WINDOW), \
          patch("scraper.rss_scraper.feedparser.parse", return_value=mock_feed):
-        results = scrape_rss("https://www.eba.europa.eu/rss", source_name="EBA", days=7)
+        results = scrape_rss("https://www.eba.europa.eu/rss", source_name="EBA")
     assert results == []
 
 
@@ -79,9 +80,9 @@ def test_scrape_rss_handles_missing_summary():
     entry.title = "Title only"
     entry.link = "https://example.com"
     entry.published_parsed = (MOCK_MONDAY + timedelta(days=1)).timetuple()
-    with patch("scraper.rss_scraper.iso_week_cutoff", return_value=MOCK_MONDAY), \
+    with patch("scraper.rss_scraper.get_window", return_value=MOCK_WINDOW), \
          patch("scraper.rss_scraper.feedparser.parse",
                return_value=_mock_feed([entry])):
-        results = scrape_rss("https://example.com/rss", source_name="TEST", days=7)
+        results = scrape_rss("https://example.com/rss", source_name="TEST")
     assert len(results) == 1
     assert results[0]["summary"] == ""

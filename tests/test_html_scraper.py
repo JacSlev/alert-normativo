@@ -16,6 +16,17 @@ from scraper.html_scraper import (
 )
 
 # ---------------------------------------------------------------------------
+# Shared pinned window: [2026-05-11, 2026-05-18)
+# All tests that need date filtering use this constant window via
+# patch("scraper.html_scraper.get_window", return_value=WINDOW)
+# ---------------------------------------------------------------------------
+
+FIXED_START = datetime(2026, 5, 11, 0, 0, 0, tzinfo=timezone.utc)
+FIXED_END   = datetime(2026, 5, 18, 0, 0, 0, tzinfo=timezone.utc)
+WINDOW = (FIXED_START, FIXED_END)
+
+
+# ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
 
@@ -71,11 +82,11 @@ IVASS_HTML_EMPTY = "<html><body><div class='ivass-doc-list'><ul></ul></div></bod
 
 
 def test_scrape_ivass_returns_recent_items():
-    # page 1 returns items; page 2 returns empty → pagination stops
-    with patch("scraper.html_scraper.requests.get",
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper.requests.get",
                side_effect=[_mock_response(IVASS_HTML_P1), _mock_response(IVASS_HTML_EMPTY)]):
         results = scrape_ivass_regolamenti(days=7)
-    # May 12 (Tue) is within the current ISO week (Mon 2026-05-11)
+    # May 12 is inside [May 11, May 18)
     assert len(results) == 1
     assert results[0]["source"] == "IVASS"
     assert results[0]["date"] == "12/05/2026"
@@ -83,13 +94,13 @@ def test_scrape_ivass_returns_recent_items():
 
 
 def test_scrape_ivass_excludes_pre_week_items():
-    """Items dated before the current ISO week start (Mon 2026-05-11) are excluded."""
+    """Items dated before the window start (Mon 2026-05-11) are excluded."""
     html_pre_week = """
     <div class="ivass-doc-list"><ul>
     <li><a href="/normativa/2026/n55/index.html">Regolamento IVASS n. 55 del 9 maggio 2026</a></li>
     </ul></div>"""
-    # May 9 is Saturday of the PREVIOUS ISO week → excluded
-    with patch("scraper.html_scraper.requests.get",
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper.requests.get",
                side_effect=[_mock_response(html_pre_week), _mock_response(IVASS_HTML_EMPTY)]):
         results = scrape_ivass_regolamenti(days=7)
     assert len(results) == 0
@@ -113,7 +124,8 @@ def test_scrape_ivass_absolute_link_preserved():
     <div class="ivass-doc-list"><ul>
     <li><a href="https://external.example.com/doc">Regolamento IVASS n. 99 del 12 maggio 2026</a></li>
     </ul></div>"""
-    with patch("scraper.html_scraper.requests.get",
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper.requests.get",
                side_effect=[_mock_response(html), _mock_response(IVASS_HTML_EMPTY)]):
         results = scrape_ivass_regolamenti(days=7)
     assert results[0]["link"] == "https://external.example.com/doc"
@@ -138,7 +150,8 @@ IE_HTML = """
 
 
 def test_scrape_insurance_europe_returns_recent():
-    with patch("scraper.html_scraper.requests.get", return_value=_mock_response(IE_HTML)):
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper.requests.get", return_value=_mock_response(IE_HTML)):
         results = scrape_insurance_europe_news(days=7)
     assert len(results) == 1
     assert results[0]["title"] == "Updated guide on indirect taxation"
@@ -148,12 +161,11 @@ def test_scrape_insurance_europe_returns_recent():
 
 
 def test_scrape_insurance_europe_days_param_ignored():
-    """The `days` param is deprecated — ISO week boundary is always used.
-    May 11 is the Monday of the current ISO week, so it is included
-    regardless of the `days` argument passed."""
-    with patch("scraper.html_scraper.requests.get", return_value=_mock_response(IE_HTML)):
+    """The `days` param is ignored — the window from get_window() is always used."""
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper.requests.get", return_value=_mock_response(IE_HTML)):
         results = scrape_insurance_europe_news(days=3)
-    # May 11 is the ISO week start → still included even with days=3
+    # May 11 is the window start → included regardless of days=3
     assert len(results) == 1
 
 
@@ -168,7 +180,8 @@ def test_scrape_insurance_europe_no_date_skipped():
     <div class="el-objectnews">
       <h3 class="title"><a href="/news/1/no-date">No date article</a></h3>
     </div>"""
-    with patch("scraper.html_scraper.requests.get", return_value=_mock_response(html)):
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper.requests.get", return_value=_mock_response(html)):
         results = scrape_insurance_europe_news(days=7)
     assert results == []
 
@@ -177,7 +190,7 @@ def test_scrape_insurance_europe_no_date_skipped():
 # ANIA comunicati (Selenium mock)
 # ---------------------------------------------------------------------------
 
-# May 12 is Tuesday of the current ISO week (Mon 2026-05-11)
+# May 12 is inside [May 11, May 18); Dec 1 2025 is out
 ANIA_HTML = """
 <html><body>
   <div class="thumb-pubblicazioni">
@@ -197,9 +210,9 @@ ANIA_HTML = """
 
 
 def test_scrape_ania_returns_recent():
-    with patch("scraper.html_scraper._get_selenium") as mock_sel:
-        from bs4 import BeautifulSoup
-        mock_sel.return_value = BeautifulSoup(ANIA_HTML, "html.parser")
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper._get_selenium",
+               return_value=BeautifulSoup(ANIA_HTML, "html.parser")):
         results = scrape_ania_comunicati(days=7)
     assert len(results) == 1
     assert results[0]["source"] == "ANIA"
@@ -208,7 +221,7 @@ def test_scrape_ania_returns_recent():
 
 
 def test_scrape_ania_excludes_pre_week_items():
-    """Items dated before the current ISO week start are excluded."""
+    """Items dated before the window start are excluded."""
     ania_pre_week = """
     <html><body>
       <div class="thumb-pubblicazioni">
@@ -218,10 +231,9 @@ def test_scrape_ania_excludes_pre_week_items():
         </div>
       </div>
     </body></html>"""
-    # May 9 is Saturday of the PREVIOUS ISO week → excluded
-    with patch("scraper.html_scraper._get_selenium") as mock_sel:
-        from bs4 import BeautifulSoup
-        mock_sel.return_value = BeautifulSoup(ania_pre_week, "html.parser")
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper._get_selenium",
+               return_value=BeautifulSoup(ania_pre_week, "html.parser")):
         results = scrape_ania_comunicati(days=7)
     assert len(results) == 0
 
@@ -247,14 +259,14 @@ BCE_HTML_IN_WINDOW = """
 </body></html>
 """
 
-# Today is 2026-05-18 (Monday). iso_week_cutoff() returns 2026-05-11 (previous Monday).
-# Previous ISO week: Mon 2026-05-11 to Sun 2026-05-17.
-# May 12 (Tue) → within window → included
-# May 4 (Sun) → before cutoff (< May 11) → excluded
+# Window [2026-05-11, 2026-05-18):
+# May 12 → inside → included
+# May 4  → before start → break (reverse-chrono)
 
 
 def test_scrape_bce_publications_includes_in_window():
-    with patch("scraper.html_scraper._get_selenium",
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper._get_selenium",
                return_value=BeautifulSoup(BCE_HTML_IN_WINDOW, "html.parser")):
         results = scrape_bce_publications(days=7)
     assert len(results) == 1
@@ -269,7 +281,8 @@ def test_scrape_bce_publications_excludes_pre_week():
       <dt>4 May 2026</dt>
       <dd><a href="/pub/economic-bulletin/2026/html/ecb.eb.en.html">Old bulletin</a></dd>
     </dl>"""
-    with patch("scraper.html_scraper._get_selenium",
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper._get_selenium",
                return_value=BeautifulSoup(html_old, "html.parser")):
         results = scrape_bce_publications(days=7)
     assert results == []
@@ -288,7 +301,8 @@ def test_scrape_bce_publications_deduplicates():
       <dd><a href="/pub/wp1.en.html">Paper A</a></dd>
       <dd><a href="/pub/wp1.en.html">Paper A duplicate</a></dd>
     </dl>"""
-    with patch("scraper.html_scraper._get_selenium",
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
+         patch("scraper.html_scraper._get_selenium",
                return_value=BeautifulSoup(html_dup, "html.parser")):
         results = scrape_bce_publications(days=7)
     assert len(results) == 1
@@ -313,16 +327,14 @@ def _amla_entry_fixed(title: str, link: str, pub_dt: datetime) -> MagicMock:
     return entry
 
 
-# Pinned window: [2026-05-11, 2026-05-18) — reuses FIXED_START / FIXED_END defined below.
-# In-window: Wed 2026-05-13 — out-of-window: Sun 2026-05-03 (week before).
+# In-window: Wed 2026-05-13 — out-of-window: Sun 2026-05-03 (week before)
 AMLA_PUB_IN  = datetime(2026, 5, 13, 10, 0, 0, tzinfo=timezone.utc)
 AMLA_PUB_OUT = datetime(2026, 5,  3, 10, 0, 0, tzinfo=timezone.utc)
 
 
 def test_scrape_amla_news_includes_recent():
     entry_in = _amla_entry_fixed("AMLA publishes template", "/amla-template_en", AMLA_PUB_IN)
-    with patch("scraper.html_scraper.previous_iso_week_window",
-               return_value=(FIXED_START, FIXED_END)), \
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
          patch("feedparser.parse", return_value=_amla_feed([entry_in])):
         results = scrape_amla_news(days=7)
     assert len(results) == 1
@@ -332,8 +344,7 @@ def test_scrape_amla_news_includes_recent():
 
 def test_scrape_amla_news_excludes_old():
     entry_old = _amla_entry_fixed("Old news", "/old-news_en", AMLA_PUB_OUT)
-    with patch("scraper.html_scraper.previous_iso_week_window",
-               return_value=(FIXED_START, FIXED_END)), \
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
          patch("feedparser.parse", return_value=_amla_feed([entry_old])):
         results = scrape_amla_news(days=7)
     assert results == []
@@ -341,8 +352,7 @@ def test_scrape_amla_news_excludes_old():
 
 def test_scrape_amla_news_absolute_link_unchanged():
     entry = _amla_entry_fixed("Doc", "https://www.amla.europa.eu/doc_en", AMLA_PUB_IN)
-    with patch("scraper.html_scraper.previous_iso_week_window",
-               return_value=(FIXED_START, FIXED_END)), \
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
          patch("feedparser.parse", return_value=_amla_feed([entry])):
         results = scrape_amla_news(days=7)
     assert results[0]["link"] == "https://www.amla.europa.eu/doc_en"
@@ -360,8 +370,7 @@ def test_scrape_amla_publications_includes_recent():
         "https://www.amla.europa.eu/document/download/abc123_en",
         AMLA_PUB_IN,
     )
-    with patch("scraper.html_scraper.previous_iso_week_window",
-               return_value=(FIXED_START, FIXED_END)), \
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
          patch("feedparser.parse", return_value=_amla_feed([entry_in])):
         results = scrape_amla_publications(days=7)
     assert len(results) == 1
@@ -372,12 +381,9 @@ def test_scrape_amla_publications_includes_recent():
 # ---------------------------------------------------------------------------
 # Upper-bound exclusion — deterministic window test
 # ---------------------------------------------------------------------------
-# Patch previous_iso_week_window to fix the window at [2026-05-11, 2026-05-18).
-# An item published on 2026-05-18 (= end, this_monday) must be excluded.
-# An item published on 2026-05-17 (Sunday, last day of the window) must be included.
-
-FIXED_START = datetime(2026, 5, 11, 0, 0, 0, tzinfo=timezone.utc)
-FIXED_END   = datetime(2026, 5, 18, 0, 0, 0, tzinfo=timezone.utc)
+# Window [2026-05-11, 2026-05-18):
+# pub == 2026-05-18 (= end) → excluded
+# pub == 2026-05-17 (last day in window) → included
 
 IE_BOUNDARY_HTML = """
 <html><body>
@@ -394,9 +400,8 @@ IE_BOUNDARY_HTML = """
 
 
 def test_upper_bound_excluded_deterministic():
-    """A publication dated == this_monday (end) must be excluded; dated == this_monday-1 must be included."""
-    with patch("scraper.html_scraper.previous_iso_week_window",
-               return_value=(FIXED_START, FIXED_END)), \
+    """A publication dated == end must be excluded; dated == end-1 day must be included."""
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
          patch("scraper.html_scraper.requests.get",
                return_value=_mock_response(IE_BOUNDARY_HTML)):
         results = scrape_insurance_europe_news(days=7)
@@ -448,8 +453,7 @@ BDI_RICERCHE_HTML_MIXED = """
 
 
 def test_scrape_bdi_ricerche_includes_in_window():
-    with patch("scraper.html_scraper.previous_iso_week_window",
-               return_value=(FIXED_START, FIXED_END)), \
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
          patch("scraper.html_scraper._get_selenium",
                return_value=BeautifulSoup(BDI_RICERCHE_HTML_IN, "html.parser")):
         results = scrape_bdi_ricerche(days=7)
@@ -460,8 +464,7 @@ def test_scrape_bdi_ricerche_includes_in_window():
 
 
 def test_scrape_bdi_ricerche_excludes_old():
-    with patch("scraper.html_scraper.previous_iso_week_window",
-               return_value=(FIXED_START, FIXED_END)), \
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
          patch("scraper.html_scraper._get_selenium",
                return_value=BeautifulSoup(BDI_RICERCHE_HTML_OLD, "html.parser")):
         results = scrape_bdi_ricerche(days=7)
@@ -469,8 +472,7 @@ def test_scrape_bdi_ricerche_excludes_old():
 
 
 def test_scrape_bdi_ricerche_filters_mixed():
-    with patch("scraper.html_scraper.previous_iso_week_window",
-               return_value=(FIXED_START, FIXED_END)), \
+    with patch("scraper.html_scraper.get_window", return_value=WINDOW), \
          patch("scraper.html_scraper._get_selenium",
                return_value=BeautifulSoup(BDI_RICERCHE_HTML_MIXED, "html.parser")):
         results = scrape_bdi_ricerche(days=7)

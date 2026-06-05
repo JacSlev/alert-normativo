@@ -1,6 +1,8 @@
 # tests/test_date_utils.py
+import sys
+import pytest
 from datetime import datetime, timedelta, timezone
-from scraper.date_utils import iso_week_cutoff, previous_iso_week_window
+from scraper.date_utils import iso_week_cutoff, previous_iso_week_window, parse_window, get_window, set_window
 
 
 def test_iso_week_cutoff_is_monday():
@@ -94,3 +96,59 @@ def test_previous_iso_week_window_excludes_this_monday_0000():
     )
     pub_outside = datetime(2026, 5, 11, 0, 0, 0, tzinfo=timezone.utc)
     assert not (start <= pub_outside < end)
+
+
+# ── parse_window ──────────────────────────────────────────────────────────────
+
+def test_parse_window_valid():
+    start, end = parse_window("01/05/2026", "15/05/2026")
+    assert start == datetime(2026, 5, 1, 0, 0, 0, tzinfo=timezone.utc)
+    # end is al + 1 day (half-open interval)
+    assert end   == datetime(2026, 5, 16, 0, 0, 0, tzinfo=timezone.utc)
+
+
+def test_parse_window_same_day():
+    # --dal and --al the same day: window is [day, day+1)
+    start, end = parse_window("10/05/2026", "10/05/2026")
+    assert end - start == timedelta(days=1)
+
+
+def test_parse_window_invalid_dal(capsys):
+    with pytest.raises(SystemExit) as exc:
+        parse_window("32/05/2026", "15/05/2026")
+    assert exc.value.code == 1
+    assert "--dal" in capsys.readouterr().out
+
+
+def test_parse_window_invalid_al(capsys):
+    with pytest.raises(SystemExit) as exc:
+        parse_window("01/05/2026", "nope")
+    assert exc.value.code == 1
+    assert "--al" in capsys.readouterr().out
+
+
+def test_parse_window_al_before_dal(capsys):
+    with pytest.raises(SystemExit) as exc:
+        parse_window("15/05/2026", "01/05/2026")
+    assert exc.value.code == 1
+
+
+# ── get_window / set_window ───────────────────────────────────────────────────
+
+def test_get_window_without_override_returns_iso_week():
+    import scraper.date_utils as du
+    du._window_override = None          # ensure no override is set
+    start, end = get_window()
+    assert end - start == timedelta(days=7)
+    assert start.weekday() == 0         # Monday
+
+
+def test_set_window_and_get_window():
+    import scraper.date_utils as du
+    fixed_start = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    fixed_end   = datetime(2026, 5, 16, tzinfo=timezone.utc)
+    set_window(fixed_start, fixed_end)
+    try:
+        assert get_window() == (fixed_start, fixed_end)
+    finally:
+        du._window_override = None      # clean up so other tests aren't affected

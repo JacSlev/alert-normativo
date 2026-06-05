@@ -7,8 +7,6 @@ load_dotenv()
 EDIZIONE_NUMERO = os.getenv("EDIZIONE_NUMERO", "")  # Required for --publish; no default
 EDIZIONE_MESE = os.getenv("EDIZIONE_MESE", "Maggio")
 EDIZIONE_ANNO = os.getenv("EDIZIONE_ANNO", "2026")
-FINESTRA_GIORNI = int(os.getenv("FINESTRA_GIORNI", "7"))
-
 # Claude API
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
