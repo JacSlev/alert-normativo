@@ -6,4 +6,4 @@ openpyxl
 python-pptx
 python-dotenv
 selenium
-webdriver-manager
+webdriver-managerpytest
