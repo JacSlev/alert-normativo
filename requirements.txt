@@ -8,3 +8,4 @@ python-dotenv
 selenium
 webdriver-manager
 pytest
+pip-system-certs
