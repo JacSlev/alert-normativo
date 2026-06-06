@@ -2,6 +2,7 @@ import pytest
 import os
 import shutil
 import openpyxl
+from datetime import date
 from openpyxl import load_workbook
 from output.excel_logger import ensure_excel_exists, count_existing_rows, append_news, get_output_path, read_approved_news
 
@@ -16,6 +17,10 @@ SAMPLE_NEWS = [
 
 TEMPLATE_PATH = "assets/Template_settimanale.xlsx"
 
+# Mese e anno "odierni" per i test dei filtri K/L
+TODAY_MESE = date.today().strftime("%m")
+TODAY_ANNO = date.today().strftime("%Y")
+
 
 @pytest.fixture
 def output_path(tmp_path):
@@ -27,8 +32,8 @@ def output_path(tmp_path):
 
 
 def test_get_output_path_format():
-    path = get_output_path(numero="2", mese="Maggio", anno="2026")
-    assert path == "output/DB_EXCEL/monitoraggio_N2_Maggio2026.xlsx"
+    path = get_output_path()
+    assert path == "output/DB_EXCEL/alert_normativo_DB.xlsx"
 
 
 def test_ensure_excel_exists_creates_file(tmp_path):
@@ -79,6 +84,18 @@ def test_append_news_writes_rows(output_path):
     assert "https://eiopa.eu/1" in urls
 
 
+def test_append_news_populates_kl_columns(output_path):
+    """append_news deve scrivere MM in col K e AAAA in col L per ogni riga."""
+    append_news(output_path, SAMPLE_NEWS)
+    wb = load_workbook(output_path)
+    ws = wb["Monitoraggio finance"]
+    for r in range(3, ws.max_row + 1):
+        if ws.cell(r, 1).value is None:
+            continue
+        assert ws.cell(r, 11).value == TODAY_MESE, f"riga {r}: col K attesa {TODAY_MESE!r}"
+        assert ws.cell(r, 12).value == TODAY_ANNO, f"riga {r}: col L attesa {TODAY_ANNO!r}"
+
+
 def test_append_news_deduplicates_by_url(output_path):
     append_news(output_path, SAMPLE_NEWS)
     added_second = append_news(output_path, SAMPLE_NEWS)
@@ -97,13 +114,15 @@ def test_append_news_returns_count(output_path):
 
 # ── Helpers for read_approved_news tests ──────────────────────────────────────
 
-def _write_edition_column(path: str, edizione: str, start_row: int = 3):
-    """Write edizione value to column J for all data rows."""
+def _write_filter_columns(path: str, edizione: str, mese: str, anno: str, start_row: int = 3):
+    """Write edizione (col J), mese (col K) and anno (col L) for all data rows."""
     wb = openpyxl.load_workbook(path)
     ws = wb["Monitoraggio finance"]
     for row_num in range(start_row, ws.max_row + 1):
         if ws.cell(row_num, 1).value is not None:
-            ws.cell(row_num, 10).value = edizione   # column J = 10 (1-based)
+            ws.cell(row_num, 10).value = edizione   # column J
+            ws.cell(row_num, 11).value = mese        # column K
+            ws.cell(row_num, 12).value = anno        # column L
     wb.save(path)
 
 
@@ -111,8 +130,8 @@ def _write_edition_column(path: str, edizione: str, start_row: int = 3):
 
 def test_read_approved_news_returns_si_only(output_path):
     append_news(output_path, SAMPLE_NEWS)
-    _write_edition_column(output_path, "1")
-    result = read_approved_news(output_path, edizione_numero="1")
+    _write_filter_columns(output_path, edizione="1", mese=TODAY_MESE, anno=TODAY_ANNO)
+    result = read_approved_news(output_path, edizione_numero="1", mese=TODAY_MESE, anno=TODAY_ANNO)
     # SAMPLE_NEWS[0]: includi_in_pptx=SI → included
     # SAMPLE_NEWS[1]: includi_in_pptx=NO → excluded
     urls = [item["url"] for items in result.values() for item in items]
@@ -122,16 +141,43 @@ def test_read_approved_news_returns_si_only(output_path):
 
 def test_read_approved_news_filters_by_edition(output_path):
     append_news(output_path, SAMPLE_NEWS)
-    _write_edition_column(output_path, "2")   # all rows have edition=2
-    result = read_approved_news(output_path, edizione_numero="1")
+    _write_filter_columns(output_path, edizione="2", mese=TODAY_MESE, anno=TODAY_ANNO)
+    result = read_approved_news(output_path, edizione_numero="1", mese=TODAY_MESE, anno=TODAY_ANNO)
+    urls = [item["url"] for items in result.values() for item in items]
+    assert urls == []
+
+
+def test_read_approved_news_filters_by_mese(output_path):
+    """Notizie con mese diverso da quello richiesto non devono essere incluse."""
+    append_news(output_path, SAMPLE_NEWS)
+    _write_filter_columns(output_path, edizione="1", mese="01", anno=TODAY_ANNO)
+    result = read_approved_news(output_path, edizione_numero="1", mese="99", anno=TODAY_ANNO)
+    urls = [item["url"] for items in result.values() for item in items]
+    assert urls == []
+
+
+def test_read_approved_news_filters_by_anno(output_path):
+    """Notizie con anno diverso da quello richiesto non devono essere incluse."""
+    append_news(output_path, SAMPLE_NEWS)
+    _write_filter_columns(output_path, edizione="1", mese=TODAY_MESE, anno="2000")
+    result = read_approved_news(output_path, edizione_numero="1", mese=TODAY_MESE, anno=TODAY_ANNO)
     urls = [item["url"] for items in result.values() for item in items]
     assert urls == []
 
 
 def test_read_approved_news_groups_by_category(output_path):
     append_news(output_path, SAMPLE_NEWS)
-    _write_edition_column(output_path, "1")
-    result = read_approved_news(output_path, edizione_numero="1")
+    _write_filter_columns(output_path, edizione="1", mese=TODAY_MESE, anno=TODAY_ANNO)
+    result = read_approved_news(output_path, edizione_numero="1", mese=TODAY_MESE, anno=TODAY_ANNO)
     assert "BANKING" in result
     assert isinstance(result["BANKING"], list)
     assert result["BANKING"][0]["url"] == "https://eba.eu/1"
+
+
+def test_read_approved_news_no_mese_anno_filter(output_path):
+    """Se mese e anno sono omessi, il filtro K/L non si applica."""
+    append_news(output_path, SAMPLE_NEWS)
+    _write_filter_columns(output_path, edizione="1", mese="01", anno="2000")
+    result = read_approved_news(output_path, edizione_numero="1")   # no mese/anno
+    urls = [item["url"] for items in result.values() for item in items]
+    assert "https://eba.eu/1" in urls

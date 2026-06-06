@@ -16,8 +16,8 @@ DATA_START_ROW = 3
 CATEGORY_ORDER = ["BANKING", "INSURANCE", "CROSS FINANCE", "APPROFONDIMENTI"]
 
 
-def get_output_path(numero: str, mese: str, anno: str) -> str:
-    return f"output/DB_EXCEL/monitoraggio_N{numero}_{mese}{anno}.xlsx"
+def get_output_path() -> str:
+    return "output/DB_EXCEL/alert_normativo_DB.xlsx"
 
 
 def ensure_excel_exists(template_path: str, output_path: str) -> bool:
@@ -123,6 +123,9 @@ def append_news(output_path: str, news_items: list[dict]) -> int:
         ]
         for col_idx, value in enumerate(values, 1):
             ws.cell(row_num, col_idx).value = value
+        # Colonna K (11) = mese odierno MM, Colonna L (12) = anno odierno AAAA
+        ws.cell(row_num, 11).value = date.today().strftime("%m")
+        ws.cell(row_num, 12).value = date.today().strftime("%Y")
         existing_urls.add(url)
         next_id += 1
         row_num += 1
@@ -133,12 +136,14 @@ def append_news(output_path: str, news_items: list[dict]) -> int:
     return added
 
 
-def read_approved_news(excel_path: str, edizione_numero: str) -> dict:
+def read_approved_news(excel_path: str, edizione_numero: str, mese: str = "", anno: str = "") -> dict:
     """Read the reviewed Excel file and return approved news grouped by category.
 
     Filters:
-    - Column H (index 7) = "SI"     — approved by the reviewer
-    - Column J (index 9) = edizione_numero — belongs to this edition
+    - Column H (index 7)  = "SI"            — approved by the reviewer
+    - Column J (index 9)  = edizione_numero — belongs to this edition
+    - Column K (index 10) = mese (MM)       — if non-empty, filters by month
+    - Column L (index 11) = anno (AAAA)     — if non-empty, filters by year
 
     Returns a dict keyed by category name (CATEGORY_ORDER), each value a list of:
         {"descrizione": str, "data": str, "url": str, "fonte": str}
@@ -156,6 +161,14 @@ def read_approved_news(excel_path: str, edizione_numero: str) -> dict:
         edizione = str(row[9]).strip() if len(row) > 9 and row[9] is not None else ""
         if edizione != str(edizione_numero).strip():
             continue
+        if mese:
+            riga_mese = str(row[10]).strip() if len(row) > 10 and row[10] is not None else ""
+            if riga_mese != mese.strip():
+                continue
+        if anno:
+            riga_anno = str(row[11]).strip() if len(row) > 11 and row[11] is not None else ""
+            if riga_anno != anno.strip():
+                continue
         categoria = str(row[1]).strip() if row[1] else ""
         if categoria not in grouped:
             grouped[categoria] = []

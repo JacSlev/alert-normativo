@@ -114,7 +114,7 @@ def scrape(dal: str, al: str) -> None:
     synthesized = synthesize_all(client, all_news)
     print(f"Totale notizie elaborate: {len(synthesized)}")
 
-    out_excel = excel_path(config.EDIZIONE_NUMERO, config.EDIZIONE_MESE, config.EDIZIONE_ANNO)
+    out_excel = excel_path()
 
     created = ensure_excel_exists(config.TEMPLATE_XLSX, out_excel)
     if created:
@@ -134,33 +134,32 @@ def scrape(dal: str, al: str) -> None:
         print(f"  ALTRO: {counts['ALTRO']}")
 
 
-def publish():
+def publish(edizione: str, mese: str, anno: str) -> None:
     print("Fase 2 — Generazione PPTX in corso...")
-    if not config.EDIZIONE_NUMERO:
-        print(
-            "[ERRORE] EDIZIONE_NUMERO non è valorizzato nel file .env.\n"
-            "         Aggiungere la riga:  EDIZIONE_NUMERO=<numero>  nel .env e riprovare."
-        )
-        sys.exit(1)
-    out_excel = excel_path(config.EDIZIONE_NUMERO, config.EDIZIONE_MESE, config.EDIZIONE_ANNO)
-    out_pptx = pptx_path(config.EDIZIONE_NUMERO, config.EDIZIONE_MESE, config.EDIZIONE_ANNO)
+    out_excel = excel_path()
+    out_pptx  = pptx_path(edizione, mese, anno)
     generate_pptx(
         template_path=config.TEMPLATE_PPTX,
         excel_path=out_excel,
         output_path=out_pptx,
-        numero=config.EDIZIONE_NUMERO,
-        mese=config.EDIZIONE_MESE,
-        anno=config.EDIZIONE_ANNO,
-        edizione_numero=config.EDIZIONE_NUMERO,
+        numero=edizione,
+        mese=mese,
+        anno=anno,
+        edizione_numero=edizione,
+        mese_filtro=mese,
+        anno_filtro=anno,
     )
 
 
 def main():
     parser = argparse.ArgumentParser(description="Alert Normativo — SCS Consulting")
-    parser.add_argument("--scrape", action="store_true", help="Fase 1: scraping e generazione Excel")
-    parser.add_argument("--publish", action="store_true", help="Fase 2: generazione PPTX")
-    parser.add_argument("--dal", metavar="DD/MM/YYYY", help="Inizio finestra scraping (incluso)")
-    parser.add_argument("--al",  metavar="DD/MM/YYYY", help="Fine finestra scraping (incluso)")
+    parser.add_argument("--scrape",   action="store_true", help="Fase 1: scraping e generazione Excel")
+    parser.add_argument("--publish",  action="store_true", help="Fase 2: generazione PPTX")
+    parser.add_argument("--dal",      metavar="DD/MM/YYYY", help="Inizio finestra scraping (incluso)")
+    parser.add_argument("--al",       metavar="DD/MM/YYYY", help="Fine finestra scraping (incluso)")
+    parser.add_argument("--edizione", metavar="N",    help="Numero edizione (es. 1) — obbligatorio per --publish")
+    parser.add_argument("--mese",     metavar="MM",   help="Mese edizione (es. 06) — obbligatorio per --publish")
+    parser.add_argument("--anno",     metavar="AAAA", help="Anno edizione (es. 2026) — obbligatorio per --publish")
     args = parser.parse_args()
 
     if args.scrape:
@@ -172,7 +171,14 @@ def main():
             sys.exit(1)
         scrape(args.dal, args.al)
     elif args.publish:
-        publish()
+        missing = [flag for flag, val in [("--edizione", args.edizione), ("--mese", args.mese), ("--anno", args.anno)] if not val]
+        if missing:
+            print(
+                f"[ERRORE] I flag {', '.join(missing)} sono obbligatori per --publish.\n"
+                "Esempio: python main.py --publish --edizione 1 --mese 06 --anno 2026"
+            )
+            sys.exit(1)
+        publish(args.edizione, args.mese, args.anno)
     else:
         print("Specifica --scrape o --publish")
         sys.exit(1)

@@ -61,12 +61,13 @@ DATA_START_ROW  = 3
 
 # ── Lettura Excel ─────────────────────────────────────────────────────────────
 
-def read_approved_news(excel_path: str, edizione_numero: str) -> dict:
+def read_approved_news(excel_path: str, edizione_numero: str, mese: str = "", anno: str = "") -> dict:
     """Wrapper — delegates to excel_logger.read_approved_news (DRY).
 
-    Filters col H = SI and col J = edizione_numero.
+    Filters col H = SI, col J = edizione_numero, col K = mese (se valorizzato),
+    col L = anno (se valorizzato).
     """
-    return _read_approved_news(excel_path, edizione_numero=edizione_numero)
+    return _read_approved_news(excel_path, edizione_numero=edizione_numero, mese=mese, anno=anno)
 
 
 # ── Utilità slide ─────────────────────────────────────────────────────────────
@@ -176,6 +177,8 @@ def generate_pptx(
     mese: str,
     anno: str,
     edizione_numero: str = "",
+    mese_filtro: str = "",
+    anno_filtro: str = "",
 ) -> None:
     """Genera la PPTX dal template (6 slide pre-esistenti) e dall'Excel revisionato.
 
@@ -183,8 +186,15 @@ def generate_pptx(
     BOTTOM_CONTENT_Y passa alla slide successiva. Le slide vuote non vengono eliminate.
 
     edizione_numero: valore atteso in col J — se vuoto, usa `numero` come fallback.
+    mese_filtro: valore atteso in col K (MM) — se vuoto, il filtro non si applica.
+    anno_filtro: valore atteso in col L (AAAA) — se vuoto, il filtro non si applica.
     """
-    grouped = read_approved_news(excel_path, edizione_numero=edizione_numero or numero)
+    grouped = read_approved_news(
+        excel_path,
+        edizione_numero=edizione_numero or numero,
+        mese=mese_filtro,
+        anno=anno_filtro,
+    )
 
     prs    = Presentation(template_path)
     slides = list(prs.slides)
@@ -250,6 +260,5 @@ def generate_pptx(
     )
 
 
-def get_output_path(numero: str, mese: str, anno: str) -> str:
-    today = date.today().strftime("%Y%m%d")
-    return f"output/ALERT_PPT/alert_normativo_N{numero}_{mese}{anno}_{today}.pptx"
+def get_output_path(edizione: str, mese: str, anno: str) -> str:
+    return f"output/ALERT_PPT/{anno}/Alert_Normativo_n.{edizione}-{mese}.pptx"

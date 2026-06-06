@@ -3,10 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Parametri edizione
-EDIZIONE_NUMERO = os.getenv("EDIZIONE_NUMERO", "")  # Required for --publish; no default
-EDIZIONE_MESE = os.getenv("EDIZIONE_MESE", "Maggio")
-EDIZIONE_ANNO = os.getenv("EDIZIONE_ANNO", "2026")
 # Claude API
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
