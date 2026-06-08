@@ -84,17 +84,17 @@ Il riquadro edizione (es. "N. 2 / Maggio 2026") viene individuato cercando la sh
 ## Nome file output
 
 ```
-output/ALERT_PPT/alert_normativo_N{numero}_{mese}{anno}_{YYYYMMDD}.pptx
+output/ALERT_PPT/{anno}/Alert_Normativo_n.{edizione}-{mese}.pptx
 ```
 
-Esempio: `output/ALERT_PPT/alert_normativo_N2_Maggio2026_20260516.pptx`
+Esempio: `output/ALERT_PPT/2026/Alert_Normativo_n.2-06.pptx`
 
-La directory `output/ALERT_PPT/` viene creata automaticamente se non esiste.
+La directory `output/ALERT_PPT/{anno}/` viene creata automaticamente se non esiste.
 
 ## Flusso completo
 
-1. Leggere `output/DB_EXCEL/monitoraggio_N{n}_{mese}{anno}.xlsx` (revisionato dal responsabile)
-2. Filtrare le righe con colonna H = "SI"
+1. Leggere `output/DB_EXCEL/alert_normativo_DB.xlsx` (revisionato dal responsabile)
+2. Filtrare le righe con colonna H = "SI", colonna J = `--edizione`, colonna K = `--mese` (MM), colonna L = `--anno` (AAAA)
 3. Raggruppare per categoria
 4. Aprire `assets/_CLEAN.pptx`
 5. Scorrere le 6 slide in ordine, disegnare il contenuto

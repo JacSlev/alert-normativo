@@ -35,7 +35,7 @@ alert_normativo/
 ├── .env.example
 ├── requirements.txt
 ├── main.py                           # entry point: --scrape / --publish
-├── config.py                         # fonti, FONTE_AMBITO, parametri edizione
+├── config.py                         # fonti, FONTE_AMBITO, parametri API
 ├── docs/
 │   ├── categorizzazione.md           # logica Claude API + prompt aggiornati
 │   ├── excel_schema.md               # schema foglio "Monitoraggio finance"
@@ -79,18 +79,22 @@ alert_normativo/
 - `CATEGORY_ORDER = ["BANKING", "INSURANCE", "CROSS FINANCE", "APPROFONDIMENTI"]`
 
 ### `scraper/date_utils.py`
-- `iso_week_cutoff(_now=None)` → `datetime` — restituisce lunedì 00:00:00 UTC della settimana ISO precedente (usato come target mock nei test RSS)
+- `iso_week_cutoff(_now=None)` → `datetime` — restituisce lunedì 00:00:00 UTC della settimana ISO precedente
 - `previous_iso_week_window(_now=None)` → `tuple[datetime, datetime]` — restituisce `(prev_monday, this_monday)` come finestra half-open `[start, end)` UTC
+- `_window_override` — variabile di modulo (`None` di default); se impostata, `get_window()` restituisce questa invece della settimana ISO
+- `set_window(start, end)` — imposta `_window_override`; chiamato da `main.py --scrape` dopo `parse_window()`
+- `get_window(_now=None)` → `tuple[datetime, datetime]` — restituisce l'override se impostato, altrimenti `previous_iso_week_window()`
+- `parse_window(dal, al)` → `tuple[datetime, datetime]` — converte le stringhe `DD/MM/YYYY` in UTC; `end = al + 1 giorno` (half-open); termina con `sys.exit(1)` su formato errato o range invertito
 
 ### `scraper/rss_scraper.py`
 - `scrape_rss(url, source_name, days)` → `list[dict]`
-- La finestra di scraping è la settimana ISO precedente: usa `iso_week_cutoff()` per lo start e calcola `end = start + timedelta(days=7)`; il parametro `days` è ignorato
+- La finestra di scraping viene da `get_window()` (usa l'override se impostato da `--scrape`, altrimenti settimana ISO precedente); il parametro `days` è ignorato
 - Ogni notizia include il campo `ambito_fonte` (da `config.FONTE_AMBITO`) usato da Claude API per la categorizzazione
 
 ### `scraper/html_scraper.py`
 - ~37 funzioni scraper, una per ogni sezione di ogni fonte
 - Helper interni: `_get()` (statico), `_get_selenium()` (JS), `_parse_*_date()` per vari formati data
-- `_cutoff(days) → tuple[datetime, datetime]` — delega a `previous_iso_week_window()` e restituisce `(start, end)`; il parametro `days` è ignorato
+- `_cutoff(days) → tuple[datetime, datetime]` — delega a `get_window()` e restituisce `(start, end)`; il parametro `days` è ignorato
 - `scrape_eurlex`: i parametri URL `DTA`/`DTB` usano `start.date()` e `(end - 1 day).date()` dalla finestra ISO — coerenti col filtro sui risultati parsati
 - `_scrape_bdi_form_results_page(url, label, source_name, days)` — helper Selenium condiviso da `scrape_bdi_approfondimenti` e `scrape_bdi_ricerche`; attende `#bdi_form_results li` e legge `a.bdi-result-title` + `div.bdi-result-date`
 - Fonti Selenium: ANIA, Banca d'Italia, BIS/BCBS, Gazzetta Ufficiale, EUR-Lex (best-effort)
@@ -103,19 +107,19 @@ alert_normativo/
 - I marker grassetto `**...**` vengono rimossi prima della scrittura su Excel
 
 ### `output/excel_logger.py`
+- `get_output_path()` → `str` — restituisce sempre `output/DB_EXCEL/alert_normativo_DB.xlsx` (file unico permanente, nessun parametro)
 - `ensure_excel_exists(template_path, output_path)` → `bool` — crea il file da template se non esiste, restituisce `True` se creato, `False` se già esistente
 - `count_existing_rows(output_path)` → `int` — conta le righe dati con ID valorizzato a partire da `DATA_START_ROW`
-- `append_news(output_path, news_items)` — aggiunge righe, deduplicazione per URL
-- `read_approved_news(excel_path, edizione_numero)` — legge il foglio revisionato e restituisce un dict `{categoria: [notizie]}` filtrando colonna H = "SI" **e** colonna J = `edizione_numero`
-- Output: `output/DB_EXCEL/monitoraggio_N{n}_{mese}{anno}.xlsx`
+- `append_news(output_path, news_items)` — aggiunge righe, deduplicazione per URL; popola automaticamente **colonna K** (mese odierno `MM`) e **colonna L** (anno odierno `AAAA`)
+- `read_approved_news(excel_path, edizione_numero, mese="", anno="")` — legge il foglio revisionato e restituisce un dict `{categoria: [notizie]}` filtrando: colonna H = "SI", colonna J = `edizione_numero`, colonna K = `mese` (se non vuoto), colonna L = `anno` (se non vuoto)
 
 ### `output/pptx_generator.py`
 - Template `assets/_CLEAN.pptx` con 6 slide identiche pre-esistenti
-- Legge i dati approvati tramite `excel_logger.read_approved_news()` (filtro: colonna H = "SI" **e** colonna J = `EDIZIONE_NUMERO`)
+- Legge i dati approvati tramite `excel_logger.read_approved_news()` (filtro: colonna H = "SI", colonna J = `--edizione`, colonna K = `--mese`, colonna L = `--anno`)
+- `get_output_path(edizione, mese, anno)` → `output/ALERT_PPT/{anno}/Alert_Normativo_n.{edizione}-{mese}.pptx`
 - Paginazione: scorre le slide in ordine, quando `current_y > BOTTOM_CONTENT_Y` passa alla successiva
 - Non crea mai nuove slide — se le 6 si esauriscono lancia `RuntimeError`
 - Disegna: icona + intestazione sezione (bold), descrizione (10pt regular), data (centrato), link cliccabile (blu navy)
-- Output: `output/ALERT_PPT/alert_normativo_N{n}_{mese}{anno}_{YYYYMMDD}.pptx`
 
 ## Regole di sviluppo
 
@@ -127,7 +131,7 @@ alert_normativo/
 ### Convenzioni test
 
 - Nei test non usare mai `datetime.now() - timedelta(days=N)` per costruire date di pubblicazione — i test diventano dipendenti dalla data corrente e falliscono a settimane diverse
-- Usare sempre datetime espliciti (es. `datetime(2026, 5, 13, tzinfo=timezone.utc)`) e mockare `scraper.html_scraper.previous_iso_week_window` con `return_value=(FIXED_START, FIXED_END)`
+- Usare sempre datetime espliciti (es. `datetime(2026, 5, 13, tzinfo=timezone.utc)`) e mockare `scraper.html_scraper.get_window` (o `scraper.rss_scraper.get_window`) con `return_value=(FIXED_START, FIXED_END)`
 - Le costanti `FIXED_START` / `FIXED_END` nel file di test definiscono la finestra pinned; le date "in-window" e "out-of-window" vanno scelte rispetto a quella finestra
 
 ## Variabili d'ambiente
@@ -135,19 +139,6 @@ alert_normativo/
 ```
 # Claude API
 ANTHROPIC_API_KEY=
-
-# Parametri edizione
-# EDIZIONE_NUMERO: obbligatorio per --publish; nessun default.
-#   Deve corrispondere al valore inserito manualmente in colonna J del foglio Excel.
-#   Se non valorizzato, --publish termina con errore esplicito.
-EDIZIONE_NUMERO=
-EDIZIONE_MESE=Maggio
-EDIZIONE_ANNO=2026
-
-# FINESTRA_GIORNI non è più usata per la finestra di scraping
-# (lo scraping usa sempre la settimana ISO precedente: da lunedì a domenica).
-# Mantenuta per compatibilità futura.
-FINESTRA_GIORNI=7
 
 # Upload futuro (default: none)
 UPLOAD_DESTINATION=none
@@ -157,6 +148,10 @@ GMAIL_USER=
 GMAIL_APP_PASSWORD=
 EMAIL_NOTIFICA_DESTINATARIO=
 ```
+
+I parametri di edizione (numero, mese, anno) **non** si configurano nel `.env` — vengono passati come flag CLI:
+- `--scrape` richiede `--dal DD/MM/YYYY` e `--al DD/MM/YYYY`
+- `--publish` richiede `--edizione N`, `--mese MM`, `--anno AAAA`
 
 ## Version Control
 
