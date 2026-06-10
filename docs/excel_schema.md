@@ -43,6 +43,7 @@ Nome file output: `output/DB_EXCEL/alert_normativo_DB.xlsx` (fisso, unico per tu
 - Colonna H (Includi in PPTX): "SI" per BANKING/INSURANCE/CROSS FINANCE, "NO" per APPROFONDIMENTI
 - Colonne K e L: popolate automaticamente con mese (`MM`) e anno (`AAAA`) della data di esecuzione
 - Deduplicazione: non aggiungere una notizia se l'URL è già presente nel foglio (confronto colonna I)
+- Prima di ogni salvataggio crea/sovrascrive il backup `output/DB_EXCEL/alert_normativo_DB.backup.xlsx` con lo stato precedente del file (se la copia fallisce, logga un warning e procede)
 - Chiamate ripetute sullo stesso file aggiungono righe senza sovrascrivere quelle esistenti
 
 ### Fase --publish (`output/pptx_generator.py`)

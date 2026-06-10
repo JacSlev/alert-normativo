@@ -20,6 +20,20 @@ def get_output_path() -> str:
     return "output/DB_EXCEL/alert_normativo_DB.xlsx"
 
 
+def _create_backup(output_path: str) -> None:
+    """Copia il file Excel in un backup rolling (.backup.xlsx) nella stessa cartella.
+
+    Va chiamata prima di wb.save(): in quel momento il file su disco è ancora
+    nello stato pre-modifica. Se la copia fallisce, logga e prosegue.
+    """
+    backup_path = os.path.splitext(output_path)[0] + ".backup.xlsx"
+    try:
+        shutil.copy(output_path, backup_path)
+        print(f"[INFO] Backup aggiornato: {backup_path}")
+    except Exception as e:
+        print(f"[WARNING] Backup non riuscito: {e} — procedo comunque")
+
+
 def ensure_excel_exists(template_path: str, output_path: str) -> bool:
     """Copy template to output_path if it does not already exist.
 
@@ -132,6 +146,7 @@ def append_news(output_path: str, news_items: list[dict]) -> int:
         added += 1
 
     _format_sheet(ws)
+    _create_backup(output_path)
     wb.save(output_path)
     return added
 

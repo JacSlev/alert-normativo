@@ -112,6 +112,32 @@ def test_append_news_returns_count(output_path):
     assert added == 2
 
 
+# ── Tests for backup rolling ──────────────────────────────────────────────────
+
+def _backup_path_for(path: str) -> str:
+    return os.path.splitext(path)[0] + ".backup.xlsx"
+
+
+def test_append_news_creates_backup(output_path):
+    """append_news crea il backup con lo stato PRE-scrittura (template vuoto → 0 righe)."""
+    append_news(output_path, SAMPLE_NEWS)
+    backup = _backup_path_for(output_path)
+    assert os.path.exists(backup)
+    assert count_existing_rows(backup) == 0
+
+
+def test_backup_preserves_previous_state(output_path):
+    """Il backup contiene sempre lo stato della run precedente, non quello corrente."""
+    append_news(output_path, SAMPLE_NEWS)
+    nuova = [{"categoria": "CROSS FINANCE", "fonte": "ESMA",
+              "titolo": "ESMA aggiorna Q&A MiFID II", "descrizione": "Aggiornamento Q&A.",
+              "data_originale": "15/05/2026", "url": "https://esma.eu/1", "includi_in_pptx": "SI"}]
+    append_news(output_path, nuova)
+    backup = _backup_path_for(output_path)
+    assert count_existing_rows(backup) == 2      # stato pre-seconda-scrittura
+    assert count_existing_rows(output_path) == 3  # file principale aggiornato
+
+
 # ── Helpers for read_approved_news tests ──────────────────────────────────────
 
 def _write_filter_columns(path: str, edizione: str, mese: str, anno: str, start_row: int = 3):

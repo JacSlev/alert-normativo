@@ -114,6 +114,7 @@ alert_normativo/
 - `ensure_excel_exists(template_path, output_path)` → `bool` — crea il file da template se non esiste, restituisce `True` se creato, `False` se già esistente
 - `count_existing_rows(output_path)` → `int` — conta le righe dati con ID valorizzato a partire da `DATA_START_ROW`
 - `append_news(output_path, news_items)` — aggiunge righe, deduplicazione per URL; popola automaticamente **colonna K** (mese odierno `MM`) e **colonna L** (anno odierno `AAAA`)
+- `_create_backup(output_path)` — backup rolling `alert_normativo_DB.backup.xlsx` (stessa cartella) creato da `append_news` subito prima di ogni `wb.save`, con lo stato pre-modifica del file; se la copia fallisce logga `[WARNING]` e procede
 - `read_approved_news(excel_path, edizione_numero, mese="", anno="")` — legge il foglio revisionato e restituisce un dict `{categoria: [notizie]}` filtrando: colonna H = "SI", colonna J = `edizione_numero`, colonna K = `mese` (se non vuoto), colonna L = `anno` (se non vuoto)
 
 ### `output/pptx_generator.py`
