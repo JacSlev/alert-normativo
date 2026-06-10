@@ -12,7 +12,7 @@ Legenda accesso: **RSS** = feedparser, **HTML** = requests + BeautifulSoup4, **S
 |---|---|---|
 | EBA | https://www.eba.europa.eu/rss.xml | RSS |
 | BCE | https://www.ecb.europa.eu/rss/press.html | RSS |
-| ABI (news, comunicati, eventi) | https://www.abi.it/feed | RSS (3 feed) |
+| ABI (news, comunicati, eventi) | https://www.abi.it/feed | RSS (1 feed) |
 | Dirittobancario — Flash news banca | https://www.dirittobancario.it/cat/flash-news/feed/ | RSS |
 | Dirittobancario — Approfondimenti banche | https://www.dirittobancario.it/cat/approfondimenti/banche-e-intermediari/feed/ | RSS |
 | Banca d'Italia — Homepage | https://www.bancaditalia.it/ | Selenium |
@@ -82,7 +82,7 @@ Legenda accesso: **RSS** = feedparser, **HTML** = requests + BeautifulSoup4, **S
 
 ## Note operative
 
-- **Finestra temporale:** ultimi `FINESTRA_GIORNI` giorni (default 7, configurabile in `.env`)
+- **Finestra temporale:** definita dai flag obbligatori `--dal`/`--al` (DD/MM/YYYY) di `--scrape` (`--al` incluso); senza override impostato, i moduli usano la settimana ISO precedente (lun–dom)
 - **Deduplicazione:** confronto su URL — le notizie già presenti nell'Excel non vengono reinserite
 - **Timeout richieste:** 15 secondi per HTTP statico, 20 secondi per Selenium
 - **Errori per fonte:** se una fonte è irraggiungibile, lo script logga l'errore e continua con le altre
