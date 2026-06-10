@@ -100,8 +100,9 @@ Rispondi SOLO con un array JSON, senza testo aggiuntivo.
 ### Note implementative
 
 - Modello: `claude-haiku-4-5`
-- Max token risposta: 4096
+- Max token risposta: 8192 (10 sintesi + JSON ≈ 2.500-3.000 token; il modello supporta fino a 64K)
 - Batch size: 10 notizie per chiamata API
-- Retry: max 2 tentativi in caso di JSON non valido
+- Retry: max 2 tentativi in caso di JSON non valido o risposta troncata (`stop_reason == "max_tokens"`)
+- Controllo conteggio: se il batch restituisce meno sintesi delle notizie inviate, viene loggato un warning e i risultati parziali sono accettati (niente retry); a fine elaborazione `synthesize_all` stampa un `[WARNING]` riepilogativo. Recupero: rilanciare `--scrape` sulla stessa finestra — la deduplicazione per URL reinserisce solo le notizie mancanti
 - Post-processing: i marker `**...**` (grassetto markdown) vengono rimossi dal titolo e dalla descrizione prima della scrittura su Excel — la formattazione grassetto nella PPTX è gestita dalla logica di rendering del generatore
 - Risposta attesa: array JSON (non oggetto — il vecchio formato `{"notizie": [...]}` non è più usato)

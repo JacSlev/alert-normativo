@@ -104,7 +104,9 @@ alert_normativo/
 
 ### `ai/synthesizer.py`
 - `synthesize_all(client, news_items)` → `list[dict]`
-- Batch di 10 notizie per chiamata, max 2 retry su JSON non valido
+- Batch di 10 notizie per chiamata, max 2 retry su JSON non valido o risposta troncata (`stop_reason == "max_tokens"`)
+- `MAX_TOKENS = 8192` — margine ~2.5× per 10 sintesi (haiku-4-5 supporta 64K output)
+- Controllo conteggio: se un batch restituisce meno sintesi delle notizie inviate → warning e risultati parziali accettati; `synthesize_all` stampa un `[WARNING]` riepilogativo finale (recupero: ri-lanciare `--scrape`, la dedup URL reinserisce solo le mancanti)
 - Output per notizia: `{categoria, fonte, titolo, descrizione, data_originale, url, includi_in_pptx}`
 - I marker grassetto `**...**` vengono rimossi prima della scrittura su Excel
 

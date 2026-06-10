@@ -20,9 +20,10 @@ VALID_RESPONSE = json.dumps([
 ])
 
 
-def make_mock_client(response_text):
+def make_mock_client(response_text, stop_reason="end_turn"):
     mock_msg = MagicMock()
     mock_msg.content = [MagicMock(text=response_text)]
+    mock_msg.stop_reason = stop_reason
     mock_client = MagicMock()
     mock_client.messages.create.return_value = mock_msg
     return mock_client
@@ -97,3 +98,38 @@ def test_synthesize_all_empty_input():
     results = synthesize_all(client, [])
     assert results == []
     assert client.messages.create.call_count == 0
+
+
+def test_synthesize_batch_uses_max_tokens():
+    client = make_mock_client(VALID_RESPONSE)
+    synthesize_batch(client, SAMPLE_NEWS)
+    call_kwargs = client.messages.create.call_args[1]
+    assert call_kwargs["max_tokens"] == 8192
+
+
+def test_synthesize_batch_retries_on_max_tokens_truncation():
+    """stop_reason=max_tokens → risposta troncata, va trattata come errore e ritentata."""
+    client = make_mock_client(VALID_RESPONSE, stop_reason="max_tokens")
+    results = synthesize_batch(client, SAMPLE_NEWS, max_retries=2)
+    assert results == []
+    assert client.messages.create.call_count == 3  # 1 original + 2 retries
+
+
+def test_synthesize_batch_accepts_partial_results_with_warning(caplog):
+    """Risposta con meno sintesi delle notizie inviate → warning, parziali accettati, nessun retry."""
+    partial_response = json.dumps([json.loads(VALID_RESPONSE)[0]])  # 1 sintesi per 2 notizie
+    client = make_mock_client(partial_response)
+    with caplog.at_level("WARNING", logger="ai.synthesizer"):
+        results = synthesize_batch(client, SAMPLE_NEWS)
+    assert len(results) == 1
+    assert client.messages.create.call_count == 1  # no retry
+    assert any("attese 2 sintesi, ricevute 1" in r.message for r in caplog.records)
+
+
+def test_synthesize_all_warns_on_lost_news(capsys):
+    """Se alla fine mancano sintesi rispetto alle notizie in input, stampa un warning riepilogativo."""
+    client = make_mock_client("[]")
+    results = synthesize_all(client, SAMPLE_NEWS)
+    assert results == []
+    out = capsys.readouterr().out
+    assert "[WARNING] 2 notizie su 2" in out

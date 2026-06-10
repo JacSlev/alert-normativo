@@ -3,7 +3,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-MAX_TOKENS = 4096
+# 10 sintesi da ~120 parole + overhead JSON ≈ 2.500-3.000 token: 8192 dà margine ~2.5×
+# (claude-haiku-4-5 supporta fino a 64K token di output)
+MAX_TOKENS = 8192
 
 SYSTEM_PROMPT = """Sei un esperto di regolamentazione finanziaria europea e italiana, consulente per SCS Consulting.
 Il tuo compito è analizzare notizie normative e produrre sintesi professionali per la newsletter Alert Normativo.
@@ -65,6 +67,8 @@ def synthesize_batch(client, news_items: list[dict], max_retries: int = 2) -> li
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_prompt}],
             )
+            if getattr(response, "stop_reason", None) == "max_tokens":
+                raise ValueError(f"risposta troncata a {MAX_TOKENS} token (stop_reason=max_tokens)")
             response_text = response.content[0].text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
             results = json.loads(response_text)
             if not isinstance(results, list):
@@ -74,6 +78,11 @@ def synthesize_batch(client, news_items: list[dict], max_retries: int = 2) -> li
                     item["titolo"] = _strip_markdown_bold(item["titolo"])
                 if isinstance(item.get("descrizione"), str):
                     item["descrizione"] = _strip_markdown_bold(item["descrizione"])
+            if len(results) != len(news_items):
+                logger.warning(
+                    "Batch: attese %d sintesi, ricevute %d — le notizie mancanti non finiranno in Excel "
+                    "(un nuovo --scrape sulla stessa finestra le recupera, la dedup URL evita doppioni).",
+                    len(news_items), len(results))
             return results
         except (json.JSONDecodeError, ValueError) as e:
             if attempt < max_retries:
@@ -99,4 +108,7 @@ def synthesize_all(client, news_items: list[dict]) -> list[dict]:
         print(f"[AI] Elaborazione batch {batch_num} ({len(batch)} notizie)...")
         results.extend(synthesize_batch(client, batch))
 
+    if len(results) < len(news_items):
+        print(f"[WARNING] {len(news_items) - len(results)} notizie su {len(news_items)} "
+              f"non sintetizzate — rilancia --scrape sulla stessa finestra per recuperarle.")
     return results
