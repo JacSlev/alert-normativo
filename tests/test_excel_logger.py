@@ -4,7 +4,7 @@ import shutil
 import openpyxl
 from datetime import date
 from openpyxl import load_workbook
-from output.excel_logger import ensure_excel_exists, count_existing_rows, append_news, get_output_path, read_approved_news
+from output.excel_logger import ensure_excel_exists, count_existing_rows, append_news, get_output_path, read_approved_news, count_filter_stages
 
 SAMPLE_NEWS = [
     {"categoria": "BANKING", "fonte": "EBA",
@@ -207,3 +207,32 @@ def test_read_approved_news_no_mese_anno_filter(output_path):
     result = read_approved_news(output_path, edizione_numero="1")   # no mese/anno
     urls = [item["url"] for items in result.values() for item in items]
     assert "https://eba.eu/1" in urls
+
+
+# ── Tests for count_filter_stages ─────────────────────────────────────────────
+
+def test_count_filter_stages_full_match(output_path):
+    """SAMPLE_NEWS: 2 righe, 1 approvata (SI); J/L corrette → tutti gli stadi pieni."""
+    append_news(output_path, SAMPLE_NEWS)
+    _write_filter_columns(output_path, edizione="1", mese=TODAY_MESE, anno=TODAY_ANNO)
+    stages = count_filter_stages(output_path, edizione_numero="1", anno=TODAY_ANNO)
+    assert stages == {"righe": 2, "approvate": 1, "edizione": 1, "anno": 1}
+
+
+def test_count_filter_stages_wrong_edition(output_path):
+    """Edizione non corrispondente → lo stadio 'edizione' va a zero."""
+    append_news(output_path, SAMPLE_NEWS)
+    _write_filter_columns(output_path, edizione="2", mese=TODAY_MESE, anno=TODAY_ANNO)
+    stages = count_filter_stages(output_path, edizione_numero="1", anno=TODAY_ANNO)
+    assert stages["approvate"] == 1
+    assert stages["edizione"] == 0
+    assert stages["anno"] == 0
+
+
+def test_count_filter_stages_wrong_anno(output_path):
+    """Anno non corrispondente → 'edizione' pieno ma 'anno' a zero."""
+    append_news(output_path, SAMPLE_NEWS)
+    _write_filter_columns(output_path, edizione="1", mese=TODAY_MESE, anno="2000")
+    stages = count_filter_stages(output_path, edizione_numero="1", anno=TODAY_ANNO)
+    assert stages["edizione"] == 1
+    assert stages["anno"] == 0

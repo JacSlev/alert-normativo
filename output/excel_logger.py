@@ -151,6 +151,39 @@ def append_news(output_path: str, news_items: list[dict]) -> int:
     return added
 
 
+def count_filter_stages(excel_path: str, edizione_numero: str, anno: str) -> dict:
+    """Conteggi diagnostici a stadi per il filtro di --publish.
+
+    Restituisce quante righe sopravvivono a ogni filtro applicato in cascata:
+        {"righe":     righe dati totali (col A valorizzata),
+         "approvate": ... con colonna H = "SI",
+         "edizione":  ... e colonna J = edizione_numero,
+         "anno":      ... e colonna L = anno}
+    Usata da generate_pptx per spiegare quale filtro ha azzerato il risultato.
+    """
+    wb = load_workbook(excel_path)
+    ws = wb["Monitoraggio finance"]
+    counts = {"righe": 0, "approvate": 0, "edizione": 0, "anno": 0}
+
+    for row in ws.iter_rows(min_row=DATA_START_ROW, values_only=True):
+        if row[0] is None:
+            continue
+        counts["righe"] += 1
+        includi = str(row[7]).strip().upper() if row[7] else "NO"
+        if includi != "SI":
+            continue
+        counts["approvate"] += 1
+        edizione = str(row[9]).strip() if len(row) > 9 and row[9] is not None else ""
+        if edizione != str(edizione_numero).strip():
+            continue
+        counts["edizione"] += 1
+        riga_anno = str(row[11]).strip() if len(row) > 11 and row[11] is not None else ""
+        if riga_anno != str(anno).strip():
+            continue
+        counts["anno"] += 1
+    return counts
+
+
 def read_approved_news(excel_path: str, edizione_numero: str, mese: str = "", anno: str = "") -> dict:
     """Read the reviewed Excel file and return approved news grouped by category.
 
@@ -194,3 +227,35 @@ def read_approved_news(excel_path: str, edizione_numero: str, mese: str = "", an
             "fonte":       row[2] or "",
         })
     return grouped
+
+
+def count_filter_stages(excel_path: str, edizione_numero: str, anno: str) -> dict:
+    """Conteggi diagnostici a stadi per il filtro di --publish.
+
+    Restituisce quante righe sopravvivono a ogni filtro applicato in cascata:
+        {"righe": tot. righe dati, "approvate": con H="SI",
+         "edizione": e J=edizione_numero, "anno": e L=anno}
+    Serve a indicare quale filtro ha azzerato il risultato quando
+    read_approved_news non trova notizie.
+    """
+    wb = load_workbook(excel_path)
+    ws = wb["Monitoraggio finance"]
+    counts = {"righe": 0, "approvate": 0, "edizione": 0, "anno": 0}
+
+    for row in ws.iter_rows(min_row=DATA_START_ROW, values_only=True):
+        if row[0] is None:
+            continue
+        counts["righe"] += 1
+        includi = str(row[7]).strip().upper() if row[7] else "NO"
+        if includi != "SI":
+            continue
+        counts["approvate"] += 1
+        edizione = str(row[9]).strip() if len(row) > 9 and row[9] is not None else ""
+        if edizione != str(edizione_numero).strip():
+            continue
+        counts["edizione"] += 1
+        riga_anno = str(row[11]).strip() if len(row) > 11 and row[11] is not None else ""
+        if riga_anno != str(anno).strip():
+            continue
+        counts["anno"] += 1
+    return counts

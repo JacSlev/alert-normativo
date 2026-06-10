@@ -19,6 +19,7 @@ Colonne:
 """
 
 import os
+import sys
 import textwrap
 from datetime import date
 from pptx import Presentation
@@ -26,6 +27,7 @@ from pptx.util import Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from output.excel_logger import read_approved_news as _read_approved_news
+from output.excel_logger import count_filter_stages as _count_filter_stages
 
 # ── Struttura slide ───────────────────────────────────────────────────────────
 SLIDE_W = 7559675
@@ -182,11 +184,19 @@ def generate_pptx(
 ) -> None:
     """Genera la PPTX dal template (6 slide pre-esistenti) e dall'Excel revisionato.
 
+    Filtro righe: colonna H = "SI", colonna J = edizione, colonna L = anno.
+    La colonna K (mese di inserimento) NON è usata come filtro; `mese` serve solo
+    per il riquadro edizione sulla slide.
+
     Paginazione: scorre le slide del template in ordine; quando current_y supera
     BOTTOM_CONTENT_Y passa alla slide successiva. Le slide vuote non vengono eliminate.
 
+    Se nessuna riga supera il filtro, stampa una diagnostica a stadi e termina
+    con sys.exit(1) senza generare la PPTX.
+
     edizione_numero: valore atteso in col J — se vuoto, usa `numero` come fallback.
-    mese_filtro: valore atteso in col K (MM) — se vuoto, il filtro non si applica.
+    mese_filtro: valore atteso in col K (MM) — se vuoto, il filtro non si applica;
+                 il flusso standard (main.py) non lo passa più.
     anno_filtro: valore atteso in col L (AAAA) — se vuoto, il filtro non si applica.
     """
     grouped = read_approved_news(
@@ -195,6 +205,26 @@ def generate_pptx(
         mese=mese_filtro,
         anno=anno_filtro,
     )
+
+    total = sum(len(items) for items in grouped.values())
+    if total == 0:
+        ediz = edizione_numero or numero
+        ann  = anno_filtro or anno
+        stages = _count_filter_stages(excel_path, edizione_numero=ediz, anno=ann)
+        print(f"[ERRORE] Nessuna notizia da pubblicare per edizione={ediz}, anno={ann}.")
+        print(f"  Righe dati nel DB:                 {stages['righe']}")
+        print(f"  ... con H = \"SI\" (approvate):      {stages['approvate']}")
+        print(f"  ... e J = \"{ediz}\" (edizione):     {stages['edizione']}")
+        print(f"  ... e L = \"{ann}\" (anno):          {stages['anno']}")
+        if stages["righe"] == 0:
+            print("  Suggerimento: il DB è vuoto — lancia prima --scrape.")
+        elif stages["approvate"] == 0:
+            print("  Suggerimento: nessuna riga approvata — impostare H = \"SI\" sulle notizie da pubblicare.")
+        elif stages["edizione"] == 0:
+            print(f"  Suggerimento: colonna J non compilata con \"{ediz}\" per le righe approvate.")
+        else:
+            print(f"  Suggerimento: le righe dell'edizione hanno anno di inserimento (col L) diverso da \"{ann}\" — possibile scraping a cavallo d'anno.")
+        sys.exit(1)
 
     prs    = Presentation(template_path)
     slides = list(prs.slides)

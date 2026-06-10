@@ -94,7 +94,7 @@ La directory `output/ALERT_PPT/{anno}/` viene creata automaticamente se non esis
 ## Flusso completo
 
 1. Leggere `output/DB_EXCEL/alert_normativo_DB.xlsx` (revisionato dal responsabile)
-2. Filtrare le righe con colonna H = "SI", colonna J = `--edizione`, colonna K = `--mese` (MM), colonna L = `--anno` (AAAA)
+2. Filtrare le righe con colonna H = "SI", colonna J = `--edizione`, colonna L = `--anno` (AAAA); la colonna K non è usata come filtro (`--mese` serve solo per nome file e riquadro edizione). Se nessuna riga supera il filtro: errore bloccante con diagnostica a stadi, nessuna PPTX generata
 3. Raggruppare per categoria
 4. Aprire `assets/_CLEAN.pptx`
 5. Scorrere le 6 slide in ordine, disegnare il contenuto

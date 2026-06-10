@@ -115,11 +115,13 @@ alert_normativo/
 - `count_existing_rows(output_path)` → `int` — conta le righe dati con ID valorizzato a partire da `DATA_START_ROW`
 - `append_news(output_path, news_items)` — aggiunge righe, deduplicazione per URL; popola automaticamente **colonna K** (mese odierno `MM`) e **colonna L** (anno odierno `AAAA`)
 - `_create_backup(output_path)` — backup rolling `alert_normativo_DB.backup.xlsx` (stessa cartella) creato da `append_news` subito prima di ogni `wb.save`, con lo stato pre-modifica del file; se la copia fallisce logga `[WARNING]` e procede
-- `read_approved_news(excel_path, edizione_numero, mese="", anno="")` — legge il foglio revisionato e restituisce un dict `{categoria: [notizie]}` filtrando: colonna H = "SI", colonna J = `edizione_numero`, colonna K = `mese` (se non vuoto), colonna L = `anno` (se non vuoto)
+- `read_approved_news(excel_path, edizione_numero, mese="", anno="")` — legge il foglio revisionato e restituisce un dict `{categoria: [notizie]}` filtrando: colonna H = "SI", colonna J = `edizione_numero`, colonna K = `mese` (se non vuoto — il flusso `--publish` non lo passa più), colonna L = `anno` (se non vuoto)
+- `count_filter_stages(excel_path, edizione_numero, anno)` → `dict` — conteggi diagnostici a stadi (righe → approvate H → edizione J → anno L); usato da `generate_pptx` per spiegare un filtro a risultato vuoto
 
 ### `output/pptx_generator.py`
 - Template `assets/_CLEAN.pptx` con 6 slide identiche pre-esistenti
-- Legge i dati approvati tramite `excel_logger.read_approved_news()` (filtro: colonna H = "SI", colonna J = `--edizione`, colonna K = `--mese`, colonna L = `--anno`)
+- Legge i dati approvati tramite `excel_logger.read_approved_news()` (filtro: colonna H = "SI", colonna J = `--edizione`, colonna L = `--anno`; la colonna K **non** filtra — `--mese` serve solo per nome file e riquadro edizione)
+- Se il filtro restituisce 0 notizie: stampa una diagnostica a stadi (`count_filter_stages`) con suggerimento mirato e termina con `sys.exit(1)` senza generare la PPTX
 - `get_output_path(edizione, mese, anno)` → `output/ALERT_PPT/{anno}/Alert_Normativo_n.{edizione}-{mese}.pptx`
 - Paginazione: scorre le slide in ordine, quando `current_y > BOTTOM_CONTENT_Y` passa alla successiva
 - Non crea mai nuove slide — se le 6 si esauriscono lancia `RuntimeError`

@@ -30,8 +30,8 @@ Nome file output: `output/DB_EXCEL/alert_normativo_DB.xlsx` (fisso, unico per tu
 | H | Includi in PPTX | Testo | SI / NO — precompilato da Claude API, modificabile dal responsabile |
 | I | Link | Testo | URL fonte originale |
 | J | Numero Edizione | Testo | Numero progressivo dell'edizione — valorizzato **manualmente** dal responsabile dopo la review; lo scraper non scrive mai su questa colonna |
-| K | Mese | Testo | Mese di **inserimento** in formato `MM` (es. `"06"`) — popolato automaticamente da `append_news` con la data odierna di esecuzione dello scraping |
-| L | Anno | Testo | Anno di **inserimento** in formato `AAAA` (es. `"2026"`) — popolato automaticamente da `append_news` con la data odierna di esecuzione dello scraping |
+| K | Mese | Testo | Mese di **inserimento** in formato `MM` (es. `"06"`) — popolato automaticamente da `append_news` con la data odierna di esecuzione dello scraping; **non** usata come filtro in fase `--publish` (solo tracciamento) |
+| L | Anno | Testo | Anno di **inserimento** in formato `AAAA` (es. `"2026"`) — popolato automaticamente da `append_news` con la data odierna di esecuzione dello scraping; usata come filtro in fase `--publish` |
 
 ## Comportamento dello script
 
@@ -51,11 +51,12 @@ Nome file output: `output/DB_EXCEL/alert_normativo_DB.xlsx` (fisso, unico per tu
 - Legge il foglio "Monitoraggio finance" da `output/DB_EXCEL/alert_normativo_DB.xlsx`
 - Filtra solo le righe che soddisfano **tutte** le condizioni:
   - Colonna H = "SI" (case-insensitive) — approvata dal responsabile
-  - Colonna J = valore di `--edizione` — appartiene a questa edizione
-  - Colonna K = valore di `--mese` (MM) — mese di inserimento della riga
-  - Colonna L = valore di `--anno` (AAAA) — anno di inserimento della riga
+  - Colonna J = valore di `--edizione` — appartiene a questa edizione (i numeri edizione ripartono da 1 ogni anno)
+  - Colonna L = valore di `--anno` (AAAA) — anno di inserimento della riga (disambigua le edizioni tra anni)
+- La colonna K **non** è usata come filtro: resta una colonna informativa di tracciamento. Il flag `--mese` serve solo per il nome file e per il riquadro edizione sulla slide
 - Se manca uno dei flag `--edizione`, `--mese`, `--anno`, lo script termina con errore esplicito
-- **Nota su K/L:** le colonne K e L contengono il mese/anno in cui la riga è stata **scritta** da `--scrape` (data di esecuzione), non un campo "edizione". Il filtro `--mese`/`--anno` di `--publish` isola quindi le righe inserite in quel mese/anno: i valori passati devono corrispondere al mese/anno dello scraping (attenzione agli scraping a cavallo di mese rispetto alla pubblicazione)
+- Se il filtro non trova **nessuna** notizia, lo script termina con errore bloccante (nessuna PPTX generata) stampando una diagnostica a stadi — righe totali → approvate (H) → edizione (J) → anno (L) — con un suggerimento sul filtro che ha azzerato il risultato
+- **Nota su K/L:** le colonne K e L contengono il mese/anno in cui la riga è stata **scritta** da `--scrape` (data di esecuzione), non un campo "edizione". Solo L partecipa al filtro di `--publish`; il caso raro di scraping a cavallo d'anno rispetto alla pubblicazione viene segnalato dalla diagnostica
 - Raggruppa le notizie per categoria (ordine fisso: BANKING → INSURANCE → CROSS FINANCE → APPROFONDIMENTI)
 - Passa i dati al generatore PPTX
 

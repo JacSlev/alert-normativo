@@ -146,7 +146,6 @@ def publish(edizione: str, mese: str, anno: str) -> None:
         mese=mese,
         anno=anno,
         edizione_numero=edizione,
-        mese_filtro=mese,
         anno_filtro=anno,
     )
 
